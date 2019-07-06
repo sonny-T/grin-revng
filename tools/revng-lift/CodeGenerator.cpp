@@ -786,16 +786,16 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     PTCInstructionListPtr InstructionList(new PTCInstructionList);
     size_t ConsumedSize = 0;
 
-    ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get());
+//    ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get());
 
-//    while(VirtualAddress != 0x40028c){
-//        VirtualAddress = ptc.translate(VirtualAddress, InstructionList.get());
-//	if(*(ptc.exception_syscall)==0x100){
-//		VirtualAddress = ptc.do_syscall2();
-//	//	std::cerr<<ptc.exception_syscall;
-//	}
-//    }
-////
+    while(VirtualAddress != 0x40028c){
+        VirtualAddress = ptc.translate(VirtualAddress, InstructionList.get());
+	if(*(ptc.exception_syscall)==0x100){
+		VirtualAddress = ptc.do_syscall2();
+	//	std::cerr<<ptc.exception_syscall;
+	}
+    }
+//
     SmallSet<unsigned, 1> ToIgnore;
     ToIgnore = Translator.preprocess(InstructionList.get());
 
