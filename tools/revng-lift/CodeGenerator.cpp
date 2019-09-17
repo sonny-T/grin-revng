@@ -818,7 +818,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         VirtualAddress = DynamicVirtualAddress; 
 	if(*(ptc.exception_syscall)==0x100){
 		VirtualAddress = ptc.do_syscall2();
-	//	std::cerr<<ptc.exception_syscall;
 	}
     }
 
