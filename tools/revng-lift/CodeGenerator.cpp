@@ -797,9 +797,9 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     PTCInstructionListPtr InstructionList(new PTCInstructionList);
     size_t ConsumedSize = 0; 
 
-    if(!traverseFLAG){
-      ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
-    }
+//    if(!traverseFLAG){
+//      ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
+//    }
 
     if(traverseFLAG && !JumpTargets.haveBB){
       ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
@@ -812,13 +812,16 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 //    if(JumpTargets.haveBB){
 //      errs()<<JumpTargets.haveBB<<" appear repeat\n";
 //    }
-//    while(VirtualAddress != 0x40028c){
-//        VirtualAddress = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
-//	if(*(ptc.exception_syscall)==0x100){
-//		VirtualAddress = ptc.do_syscall2();
-//	//	std::cerr<<ptc.exception_syscall;
-//	}
-//    }
+
+    while(VirtualAddress){
+        ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
+        VirtualAddress = DynamicVirtualAddress; 
+	if(*(ptc.exception_syscall)==0x100){
+		VirtualAddress = ptc.do_syscall2();
+	//	std::cerr<<ptc.exception_syscall;
+	}
+    }
+
     if(!JumpTargets.haveBB){
     SmallSet<unsigned, 1> ToIgnore;
     ToIgnore = Translator.preprocess(InstructionList.get());
