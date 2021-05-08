@@ -228,6 +228,10 @@ public:
 
 
   llvm::BasicBlock * obtainJTBB(uint64_t PC,JTReason::Values Reason);
+
+  using SrcToDestsMap = std::map<uint64_t, std::map<uint64_t, uint32_t>>;
+  SrcToDestsMap SrcToDests;
+  void generateCFG(uint64_t src, uint64_t dest);
  
   using StaticAddrsMap = std::map<uint64_t, uint32_t>;  
   StaticAddrsMap StaticAddrs;

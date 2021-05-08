@@ -2124,6 +2124,16 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
   }
 }
 
+void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest){
+  SrcToDestsMap::iterator Target = SrcToDests.find(src);
+  if(Target != SrcToDests.end()){
+    Target->second[dest] = 1;
+  }
+  StaticAddrsMap tmp;
+  tmp[dest] = 1;
+  SrcToDests[src] = tmp;
+}
+
 void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, uint64_t thisAddr, int64_t base, int64_t offset){
   if(isExecutableAddress((uint64_t)base))
     return;

@@ -1041,7 +1041,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 	      ExeNums = ExeNums-1;
 	}
       }	   
-      DynamicVirtualAddress = StaticAddrFlag ? *ptc.syscall_next_eip:ptc.do_syscall2(SPECGcc);
+      DynamicVirtualAddress = traverseFLAG ? *ptc.syscall_next_eip:ptc.do_syscall2();
       *ptc.exception_syscall = -1; 
       if(DynamicVirtualAddress == 0 && traverseFLAG && !JumpTargets.BranchTargets.empty()){
         JumpTargets.haveBB = 0;
@@ -1069,8 +1069,10 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       BlockPCFlag = false;
     }
 
-    if(BlockBRs)
+    if(BlockBRs){
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
+      JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress);
+    }
 
     if(!JumpTargets.haveBB && crashBB==nullptr)
       JumpTargets.harvestStaticAddr(BlockBRs);
