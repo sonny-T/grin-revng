@@ -1275,6 +1275,16 @@ BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC, JTReason::Values Reason)
   return nullptr;
 }
 
+BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC){
+ 
+  BlockMap::iterator TargetIt = JumpTargets.find(PC);
+  if (TargetIt != JumpTargets.end()) {
+    BasicBlock *BB = TargetIt->second.head();
+    return BB;
+  }
+  return nullptr;
+}
+
 // TODO: register Reason
 BasicBlock *
 JumpTargetManager::registerJT(uint64_t PC, JTReason::Values Reason) {

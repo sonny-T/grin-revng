@@ -228,6 +228,7 @@ public:
 
 
   llvm::BasicBlock * obtainJTBB(uint64_t PC,JTReason::Values Reason);
+  llvm::BasicBlock * obtainJTBB(uint64_t PC); 
 
   using SrcToDestsMap = std::map<uint64_t, std::map<uint64_t, uint32_t>>;
   SrcToDestsMap SrcToDests;
