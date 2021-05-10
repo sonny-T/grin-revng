@@ -2137,10 +2137,10 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
 void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest){
   SrcToDestsMap::iterator Target = SrcToDests.find(src);
   if(Target != SrcToDests.end()){
-    Target->second[dest] = 1;
+    Target->second.insert(dest);
   }
-  StaticAddrsMap tmp;
-  tmp[dest] = 1;
+  std::set<uint64_t> tmp;
+  tmp.insert(dest);
   SrcToDests[src] = tmp;
 }
 

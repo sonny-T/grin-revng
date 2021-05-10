@@ -230,7 +230,7 @@ public:
   llvm::BasicBlock * obtainJTBB(uint64_t PC,JTReason::Values Reason);
   llvm::BasicBlock * obtainJTBB(uint64_t PC); 
 
-  using SrcToDestsMap = std::map<uint64_t, std::map<uint64_t, uint32_t>>;
+  using SrcToDestsMap = std::map<uint64_t, std::set<uint64_t>>;
   SrcToDestsMap SrcToDests;
   void generateCFG(uint64_t src, uint64_t dest);
  
