@@ -2817,7 +2817,7 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
             assign_gadge.push_back({pc,AG});
             AllGlobalAddr[pc] = 1;
             if(isGlobalDataNoRO(pc))
-              AllUnexploreGlobalAddr[pc] = 1;
+              AllUnexploreGlobalAddr[pc] = thisBlock;
             int64_t pos = assign_gadge.size()-1; 
             if(haveBinaryOperation(&*I)){
               assign_gadge[pos].second.operation_block = thisBlock;
