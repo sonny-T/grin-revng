@@ -2292,6 +2292,7 @@ function_traits	include/revng/Support/Transform.h	/^struct function_traits<Retur
 g_free	runtime/support.c	/^void g_free(void *memory) {$/;"	f
 g_malloc	runtime/support.c	/^void *g_malloc(size_t n_bytes) {$/;"	f
 g_malloc0_n	runtime/support.c	/^void *g_malloc0_n(size_t n, size_t size) {$/;"	f
+generateCFG	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest){$/;"	f	class:JumpTargetManager
 generateDebugInfo	lib/Support/DebugHelper.cpp	/^void DebugHelper::generateDebugInfo() {$/;"	f	class:DebugHelper
 generateName	tools/revng-lift/CodeGenerator.cpp	/^std::string SegmentInfo::generateName() {$/;"	f	class:SegmentInfo
 get	include/revng/Support/IRHelpers.h	/^  llvm::ConstantAsMetadata *get(llvm::Constant *C) {$/;"	f	class:QuickMetadata
@@ -2975,6 +2976,7 @@ nullptr	tests/Analysis/mips/switch-jump-table-stack.S	/^nullptr:$/;"	l
 nullptr	tests/Analysis/mips/switch-jump-table.S	/^nullptr:$/;"	l
 object	tools/revng-lift/BinaryFile.h	/^namespace object {$/;"	n	namespace:llvm
 object	tools/revng-lift/CodeGenerator.h	/^namespace object {$/;"	n	namespace:llvm
+obtainJTBB	tools/revng-lift/JumpTargetManager.cpp	/^BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC){$/;"	f	class:JumpTargetManager
 obtainJTBB	tools/revng-lift/JumpTargetManager.cpp	/^BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC, JTReason::Values Reason){$/;"	f	class:JumpTargetManager
 offset	lib/StackAnalysis/ASSlot.h	/^  int32_t offset() const { return Offset; }$/;"	f	class:StackAnalysis::ASSlot
 offset	tools/revng-lift/BinaryFile.cpp	/^  uint64_t offset() const { return Cursor - Start; }$/;"	f	class:DwarfReader

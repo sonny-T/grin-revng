@@ -2138,6 +2138,7 @@ void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest){
   SrcToDestsMap::iterator Target = SrcToDests.find(src);
   if(Target != SrcToDests.end()){
     Target->second.insert(dest);
+    return;
   }
   std::set<uint64_t> tmp;
   tmp.insert(dest);
@@ -5206,7 +5207,8 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
 				//destAddrSrcBB.second,
 				thisBlock,
 				thisAddr
-				)); 
+				));
+          generateCFG(thisAddr,destAddrSrcBB.first); 
           errs()<<format_hex(destAddrSrcBB.first,0)<<" <- Jmp target add\n";
         }  
       }
