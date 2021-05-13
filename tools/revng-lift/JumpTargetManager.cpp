@@ -5098,15 +5098,18 @@ void JumpTargetManager::clearRegs(){
 }
 
 void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64_t thisAddr){
+  if(!isDataSegmAddr(ptc.regs[R_ESP]))
+    ptc.regs[R_ESP] = *ptc.ElfStartStack - 512; 
+  
+  errs()<<*((unsigned long *)ptc.regs[4])<<"<--store callnext\n";
+  errs()<<*ptc.CallNext<<"\n";
+
   if(Statistics){
     IndirectBlocksMap::iterator it = CallBranches.find(*ptc.CallNext);
     if(it == CallBranches.end())
       CallBranches[*ptc.CallNext] = 1;
   }
-//  if(!haveTranslatedPC(*ptc.CallNext, 0)){
-//      StaticAddrs[*ptc.CallNext] = 2;
-//      errs()<<format_hex(*ptc.CallNext,0)<<"  147852369\n";
-//  }
+
   for(auto item : BranchTargets){
     if(std::get<0>(item) == *ptc.CallNext)
         return;
@@ -5177,8 +5180,7 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
 	  CondBranches[thisAddr] = 1;
     }
     for (auto destAddrSrcBB : branchJT){
-      if(!haveTranslatedPC(destAddrSrcBB.first, nextAddr) && 
-		      !isIllegalStaticAddr(destAddrSrcBB.first)){
+      if(!haveTranslatedPC(destAddrSrcBB.first, nextAddr)){
 	bool isRecord = false;
 	for(auto item : BranchTargets){
 	  if(std::get<0>(item) == destAddrSrcBB.first){
@@ -5208,10 +5210,10 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
 				thisBlock,
 				thisAddr
 				));
-          generateCFG(thisAddr,destAddrSrcBB.first); 
           errs()<<format_hex(destAddrSrcBB.first,0)<<" <- Jmp target add\n";
         }  
       }
+      generateCFG(thisAddr,destAddrSrcBB.first); 
     }
     errs()<<"Branch targets total numbers: "<<BranchTargets.size()<<" \n"; 
   }

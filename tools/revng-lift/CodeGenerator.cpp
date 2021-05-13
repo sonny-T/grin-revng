@@ -800,7 +800,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
                                    Blocks,
                                    Binary.architecture(),
                                    TargetArchitecture);
-  int jjj = 0;
+ 
   uint64_t DynamicVirtualAddress;
   // To register branch inst of BB into vector
   BasicBlock *BlockBRs;
@@ -809,7 +809,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
   uint64_t tmpVA = 0;
   llvm::BasicBlock *srcBB = nullptr;
   uint64_t srcAddr = 0;
-  llvm::BasicBlock *crashBB = nullptr;
   bool StaticAddrFlag = false;
   std::vector<uint64_t> BlockPCs1;
   std::vector<uint64_t> &BlockPCs = BlockPCs1;
@@ -817,7 +816,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
   std::map<uint32_t, uint64_t> GloData1;
   std::map<uint32_t, uint64_t> &GloData = GloData1;
   while (Entry != nullptr) {
-    jjj++;
     BlockBRs = nullptr;
     BlockPCs.clear();
     if(!JumpTargets.haveBB){
@@ -835,18 +833,19 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     if(!traverseFLAG){
       ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
       tmpVA = VirtualAddress;
+      JumpTargets.haveGlobalDatainRegs(GloData);
     }
 
-    if(traverseFLAG && !JumpTargets.haveBB){
-      ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
-      tmpVA = VirtualAddress;
+    if(traverseFLAG){
+      if(!JumpTargets.haveBB){
+        ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
+        tmpVA = VirtualAddress;
+	JumpTargets.haveGlobalDatainRegs(GloData);
+      }else{
+        ptc_instruction_list_malloc(InstructionList.get());
+	errs()<<"Nop execute!\n";
+      }
     }
-    if(traverseFLAG and JumpTargets.haveBB){
-      ptc_instruction_list_malloc(InstructionList.get()); 
-      errs()<<"Nop execute!\n";
-    } 
-    if(!traverseFLAG or !JumpTargets.haveBB)
-      JumpTargets.haveGlobalDatainRegs(GloData);
 
     if(!JumpTargets.haveBB){
     SmallSet<unsigned, 1> ToIgnore;
@@ -1002,6 +1001,8 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       JumpTargets.harvestRetBlocks(*ptc.isRet,NextPC);
     if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect)
       JumpTargets.harvestNextAddrofBr(NextPC);
+    if(*ptc.isCall)
+      JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
 
     if(!GloData.empty()){
       JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
@@ -1011,26 +1012,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 
     // Obtain a new program counter to translate
     std::tie(VirtualAddress, Entry) = JumpTargets.peek();
-
-    if(*ptc.isCall and BlockBRs){
-      if(!JumpTargets.isDataSegmAddr(ptc.regs[R_ESP]) and StaticAddrFlag){
-        ptc.regs[R_ESP] = *ptc.ElfStartStack - 512; 
-      }
-      if(!JumpTargets.isDataSegmAddr(ptc.regs[R_ESP]))	
-        ptc.regs[R_ESP] = ptc.regs[R_EBP];
-
-     // if(!JumpTargets.isDataSegmAddr(ptc.regs[R_ESP]) and JumpTargets.isDataSegmAddr(ptc.regs[R_EBP]))
-     //     ptc.regs[R_ESP] = ptc.regs[R_EBP];
-     // if(JumpTargets.isDataSegmAddr(ptc.regs[R_ESP]) and !JumpTargets.isDataSegmAddr(ptc.regs[R_EBP]))
-     //     ptc.regs[R_EBP] = ptc.regs[R_ESP] + 256;
-     // ptc.regs[R_ESP] = *ptc.ElfStartStack - 512;
-     // ptc.regs[R_EBP] = ptc.regs[R_ESP] + 256;
-      errs()<<*((unsigned long *)ptc.regs[4])<<"<--store callnext\n";
-      errs()<<*ptc.CallNext<<"\n";
-      JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
-      //JumpTargets.clearRegs();
-      *ptc.isCall = 0;
-    }
 
     if(*ptc.exception_syscall == 0x100){
       if(ExeInit){
@@ -1053,15 +1034,16 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         errs()<<"syscall--------------------\n";        
       }
     }
-    if(!JumpTargets.haveBB and *ptc.exception_syscall == 11){
-      DynamicVirtualAddress = JumpTargets.handleIllegalMemoryAccess(BlockBRs,tmpVA,ConsumedSize);
+
+    if(*ptc.exception_syscall == 11){
+      if(!JumpTargets.haveBB){
+        DynamicVirtualAddress = JumpTargets.handleIllegalMemoryAccess(BlockBRs,tmpVA,ConsumedSize);
+      }else
+        DynamicVirtualAddress = 0;
+
       *ptc.exception_syscall = -1;
-      crashBB = nullptr;
     }
-    if(JumpTargets.haveBB and *ptc.exception_syscall == 11){
-      DynamicVirtualAddress = 0;
-      *ptc.exception_syscall = -1;
-    }
+
     if(StaticAddrFlag and *ptc.isRet)
       DynamicVirtualAddress = 0;
     if(!JumpTargets.haveBB and BlockPCFlag){
@@ -1074,7 +1056,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress);
     }
 
-    if(!JumpTargets.haveBB && crashBB==nullptr)
+    if(!JumpTargets.haveBB)
       JumpTargets.harvestStaticAddr(BlockBRs);
 
     //if(!JumpTargets.haveBB and *ptc.isIndirect)
@@ -1159,7 +1141,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     if(DynamicVirtualAddress){
       auto tmpBB = JumpTargets.registerJT(DynamicVirtualAddress,JTReason::GlobalData);
       //JumpTargets.isContainIndirectInst(DynamicVirtualAddress,tmpVA,tmpBB);
-      if(JumpTargets.haveBB and (crashBB==nullptr)){
+      if(JumpTargets.haveBB){
         // If have translated BB, give Entry an arbitrary value
         Entry = tmpBB;
         VirtualAddress = DynamicVirtualAddress;
@@ -1170,7 +1152,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         if(srcBB)
 	  JumpTargets.pushpartCFGStack(Entry,VirtualAddress,srcBB,srcAddr);
         srcBB = nullptr;
-	crashBB = nullptr;
 	// For handling crash.
 	JumpTargets.haveBB = 0;
       }
