@@ -2137,8 +2137,9 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
 void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBlock *thisBlock){
   BasicBlock::iterator I = --(thisBlock->end());  
   if(auto branch = dyn_cast<BranchInst>(I)){
-    if(!branch->isConditional()){
-      dest = getInstructionPC(&*I);
+    if(branch->isUnconditional()){
+      auto nextB = dyn_cast<BasicBlock>(branch->getOperand(0));
+      dest = getInstructionPC(&*nextB->begin());
       //outs()<<*I<<"\n";
     }
   }
