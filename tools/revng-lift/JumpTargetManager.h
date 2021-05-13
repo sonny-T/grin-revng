@@ -232,7 +232,7 @@ public:
 
   using SrcToDestsMap = std::map<uint64_t, std::set<uint64_t>>;
   SrcToDestsMap SrcToDests;
-  void generateCFG(uint64_t src, uint64_t dest);
+  void generateCFG(uint64_t src, uint64_t dest, llvm::BasicBlock *thisBlock);
  
   using StaticAddrsMap = std::map<uint64_t, uint32_t>;  
   StaticAddrsMap StaticAddrs;

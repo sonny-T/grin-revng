@@ -1053,7 +1053,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 
     if(BlockBRs){
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
-      JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress);
+      JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress,BlockBRs);
     }
 
     if(!JumpTargets.haveBB)

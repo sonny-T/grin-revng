@@ -2134,7 +2134,15 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
   }
 }
 
-void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest){
+void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBlock *thisBlock){
+  BasicBlock::iterator I = --(thisBlock->end());  
+  if(auto branch = dyn_cast<BranchInst>(I)){
+    if(!branch->isConditional()){
+      dest = getInstructionPC(&*I);
+      //outs()<<*I<<"\n";
+    }
+  }
+
   SrcToDestsMap::iterator Target = SrcToDests.find(src);
   if(Target != SrcToDests.end()){
     Target->second.insert(dest);
@@ -5213,7 +5221,7 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
           errs()<<format_hex(destAddrSrcBB.first,0)<<" <- Jmp target add\n";
         }  
       }
-      generateCFG(thisAddr,destAddrSrcBB.first); 
+      generateCFG(thisAddr,destAddrSrcBB.first, thisBlock); 
     }
     errs()<<"Branch targets total numbers: "<<BranchTargets.size()<<" \n"; 
   }
