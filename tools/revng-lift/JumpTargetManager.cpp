@@ -3597,41 +3597,30 @@ bool JumpTargetManager::isIllegalStaticAddr(uint64_t pc){
   return false;
 }
 
-void JumpTargetManager::harvestNextAddrofBr(uint64_t blockNext){
-//  if(!haveTranslatedPC(blockNext, 0)){
-//      if(*ptc.isCall){
-//        StaticAddrs[blockNext] = 2;
-//      }else{
-//        StaticAddrs[blockNext] = true;
-//      }
-//  }
-  if(Statistics){
-    if(*ptc.isDirectJmp){
-      IndirectBlocksMap::iterator it = DirectJmpBlocks.find(*ptc.isDirectJmp);
-      if(it == DirectJmpBlocks.end())
-          DirectJmpBlocks[*ptc.isDirectJmp] = 1;
-    }
-    if(*ptc.isIndirectJmp){
-      IndirectBlocksMap::iterator it = IndirectJmpBlocks.find(*ptc.isIndirectJmp);
-      if(it == IndirectJmpBlocks.end())
-          IndirectJmpBlocks[*ptc.isIndirectJmp] = 1;
-    }
-    if(*ptc.isIndirect){
-      IndirectBlocksMap::iterator it = IndirectCallBlocks.find(*ptc.isIndirect);
-      if(it == IndirectCallBlocks.end())
-          IndirectCallBlocks[*ptc.isIndirect] = 1;
-    }
-  }
-}
+void JumpTargetManager::harvestNextAddrofBr(){
 
-void JumpTargetManager::harvestRetBlocks(uint64_t thisAddr, uint64_t blockNext){
-//  if(!haveTranslatedPC(blockNext, 0))
-//    StaticAddrs[blockNext] = true;
   if(Statistics){
-    IndirectBlocksMap::iterator it = RetBlocks.find(thisAddr);
-    if(it == RetBlocks.end())
-        RetBlocks[thisAddr] = 1;
-  }
+      if(*ptc.isDirectJmp){
+        IndirectBlocksMap::iterator it = DirectJmpBlocks.find(*ptc.CFIAddr);
+        if(it == DirectJmpBlocks.end())
+            DirectJmpBlocks[*ptc.CFIAddr] = 1;
+      }    
+      if(*ptc.isIndirectJmp){
+        IndirectBlocksMap::iterator it = IndirectJmpBlocks.find(*ptc.CFIAddr);
+        if(it == IndirectJmpBlocks.end())
+            IndirectJmpBlocks[*ptc.CFIAddr] = 1;
+      }
+      if(*ptc.isIndirect){    
+        IndirectBlocksMap::iterator it = IndirectCallBlocks.find(*ptc.CFIAddr);
+        if(it == IndirectCallBlocks.end())
+            IndirectCallBlocks[*ptc.CFIAddr] = 1;
+      }
+      if(*ptc.isRet){
+        IndirectBlocksMap::iterator it = RetBlocks.find(*ptc.CFIAddr);
+        if(it == RetBlocks.end())
+          RetBlocks[*ptc.CFIAddr] = 1;
+      }
+  } 
 }
 
 void JumpTargetManager::StatisticsLog(void){
@@ -3672,8 +3661,6 @@ bool JumpTargetManager::handleStaticAddr(void){
    }
    else{
      registerJT(addr,JTReason::GlobalData);
-     if(UnexploreStaticAddr.size()==1)
-       handleGlobalStaticAddr();
      UnexploreStaticAddr.erase(it);
      break;
    } 
@@ -3683,6 +3670,9 @@ bool JumpTargetManager::handleStaticAddr(void){
 }
 
 void JumpTargetManager::StaticToUnexplore(void){
+   if(StaticAddrs.empty())
+     handleGlobalStaticAddr();
+
    for(auto& PC : StaticAddrs){
     BlockMap::iterator TargetIt = JumpTargets.find(PC.first);
     BlockMap::iterator upper;
@@ -4367,10 +4357,10 @@ void JumpTargetManager::handleIndirectJmp(llvm::BasicBlock *thisBlock,
 void JumpTargetManager::harvestBTBasicBlock(llvm::BasicBlock *thisBlock,
 		                            uint64_t thisAddr,
 					    uint64_t destAddr){
-  for(auto item : BranchTargets){
-    if(std::get<0>(item) == destAddr)
-        return;
-  }
+  std::set<uint64_t>::iterator Target = BranchAddrs.find(destAddr);
+  if(Target != BranchAddrs.end())
+      return;
+
   if(!haveTranslatedPC(destAddr, 0)){
       if(!ptc.is_stack_addr(ptc.regs[R_ESP]) and ptc.is_stack_addr(ptc.regs[R_EBP]))
           ptc.regs[R_ESP] = ptc.regs[R_EBP];
@@ -4386,6 +4376,7 @@ void JumpTargetManager::harvestBTBasicBlock(llvm::BasicBlock *thisBlock,
       /* Recording not execute branch destination relationship with current BasicBlock */
      // thisBlock = nullptr; 
       BranchTargets.push_back(std::make_tuple(destAddr,thisBlock,thisAddr)); 
+      BranchAddrs.insert(destAddr);
       errs()<<format_hex(destAddr,0)<<" <- Jmp target add\n";
     }
   errs()<<"Branch targets total numbers: "<<BranchTargets.size()<<"\n";  
@@ -5108,8 +5099,7 @@ void JumpTargetManager::clearRegs(){
 
 void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64_t thisAddr){
   if(!isDataSegmAddr(ptc.regs[R_ESP]))
-    ptc.regs[R_ESP] = *ptc.ElfStartStack - 512; 
-  
+    ptc.regs[R_ESP] = *ptc.ElfStartStack - 512;   
   errs()<<*((unsigned long *)ptc.regs[4])<<"<--store callnext\n";
   errs()<<*ptc.CallNext<<"\n";
 
@@ -5118,12 +5108,10 @@ void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64
     if(it == CallBranches.end())
       CallBranches[*ptc.CallNext] = 1;
   }
-
-  for(auto item : BranchTargets){
-    if(std::get<0>(item) == *ptc.CallNext)
-        return;
-  }
-
+  std::set<uint64_t>::iterator Target = BranchAddrs.find(*ptc.CallNext);
+  if(Target != BranchAddrs.end())
+      return;
+  
   if(!haveTranslatedPC(*ptc.CallNext, 0)){
       /* Construct a state that have executed a call to next instruction of CPU state */
       ptc.regs[R_ESP] = ptc.regs[R_ESP] + 8;
@@ -5141,6 +5129,7 @@ void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64
        * but we still record this relationship, because when we backtracking,
        * we will check splited Block. */ 
       BranchTargets.push_back(std::make_tuple(*ptc.CallNext,thisBlock,thisAddr));
+      BranchAddrs.insert(*ptc.CallNext);
       errs()<<format_hex(*ptc.CallNext,0)<<" <- Call next target add\n";
     }
   errs()<<"Branch targets total numbers: "<<BranchTargets.size()<<"\n";  
@@ -5191,12 +5180,10 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
     for (auto destAddrSrcBB : branchJT){
       if(!haveTranslatedPC(destAddrSrcBB.first, nextAddr)){
 	bool isRecord = false;
-	for(auto item : BranchTargets){
-	  if(std::get<0>(item) == destAddrSrcBB.first){
-            isRecord = true;
-	    break;
-	  }
-	}
+        std::set<uint64_t>::iterator Target = BranchAddrs.find(destAddrSrcBB.first);
+        if(Target != BranchAddrs.end())
+          isRecord = true;
+	  
 	if(!isRecord){
           /* Recording current CPU state */
           if(!ptc.is_stack_addr(ptc.regs[R_ESP]) and ptc.is_stack_addr(ptc.regs[R_EBP]))
@@ -5219,6 +5206,7 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
 				thisBlock,
 				thisAddr
 				));
+          BranchAddrs.insert(destAddrSrcBB.first);
           errs()<<format_hex(destAddrSrcBB.first,0)<<" <- Jmp target add\n";
         }  
       }

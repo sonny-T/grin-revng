@@ -222,10 +222,10 @@ public:
   IndirectBlocksMap RetBlocks;
   IndirectBlocksMap CallBranches;
   IndirectBlocksMap CondBranches;
-  void harvestRetBlocks(uint64_t thisAddr, uint64_t blockNext);
-  void harvestNextAddrofBr(uint64_t blockNext);
+  void harvestNextAddrofBr();
   void StatisticsLog(void);
 
+  std::set<uint64_t> BranchAddrs;
 
   llvm::BasicBlock * obtainJTBB(uint64_t PC,JTReason::Values Reason);
   llvm::BasicBlock * obtainJTBB(uint64_t PC); 

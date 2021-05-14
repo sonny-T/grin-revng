@@ -805,7 +805,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
   // To register branch inst of BB into vector
   BasicBlock *BlockBRs;
   bool traverseFLAG = 0;
-  uint64_t jtVirtualAddress;
   uint64_t tmpVA = 0;
   llvm::BasicBlock *srcBB = nullptr;
   uint64_t srcAddr = 0;
@@ -997,10 +996,9 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       // Something went wrong, probably a mistranslation
       Builder.CreateUnreachable();
     }
-    if(*ptc.isRet)
-      JumpTargets.harvestRetBlocks(*ptc.isRet,NextPC);
-    if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect)
-      JumpTargets.harvestNextAddrofBr(NextPC);
+
+    if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect or *ptc.isRet)
+      JumpTargets.harvestNextAddrofBr();
     if(*ptc.isCall)
       JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
 
@@ -1024,15 +1022,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       }	   
       DynamicVirtualAddress = traverseFLAG ? *ptc.syscall_next_eip:ptc.do_syscall2();
       *ptc.exception_syscall = -1; 
-      if(DynamicVirtualAddress == 0 && traverseFLAG && !JumpTargets.BranchTargets.empty()){
-        JumpTargets.haveBB = 0;
-        BlockBRs = nullptr;
-        std::tie(jtVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
-        JumpTargets.BranchTargets.erase(JumpTargets.BranchTargets.begin());
-        ptc.deletCPULINEState();
-        DynamicVirtualAddress = jtVirtualAddress;  
-        errs()<<"syscall--------------------\n";        
-      }
     }
 
     if(*ptc.exception_syscall == 11){
@@ -1090,10 +1079,9 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       // Initial traverse branch PC
       BlockBRs = nullptr;
       JumpTargets.haveBB = 0;
-      std::tie(jtVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
+      std::tie(DynamicVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
       JumpTargets.BranchTargets.erase(JumpTargets.BranchTargets.begin());
       ptc.deletCPULINEState();
-      DynamicVirtualAddress = jtVirtualAddress;
       errs()<<"Init--------------------\n";
       ptc.getBranchCPUeip();
 
@@ -1130,11 +1118,10 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     {
       BlockBRs = nullptr;
       // if occure a translated BB, traversing next branch
-      std::tie(jtVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
+      std::tie(DynamicVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
       errs()<<"--------------------\n";
       JumpTargets.BranchTargets.erase(JumpTargets.BranchTargets.begin());
       ptc.deletCPULINEState();
-      DynamicVirtualAddress = jtVirtualAddress;
       GloData.clear();
     }
 
