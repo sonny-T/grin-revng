@@ -156,6 +156,18 @@ static cl::opt<string> DebugPath("debug-path",
 
 static Logger<> PTCLog("ptc");
 
+void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator &Translator, VariableManager &Variables,
+            JumpTargetManager JumpTargets,
+            llvm::Constant* &AbortFunction,
+            llvm::StoreInst* &Delimiter,
+            std::vector<BasicBlock *> &Blocks, IRBuilder<> &Builder,
+            llvm::BasicBlock* &BlockBRs,uint64_t &VirtualAddress, size_t ConsumedSize,
+            std::vector<uint64_t> &BlockPCs,
+            LLVMContext &Context,
+            unsigned OriginalInstrMDKind,
+            unsigned PTCInstrMDKind
+            );  
+
 template<typename T, typename... Args>
 inline std::array<T, sizeof...(Args)> make_array(Args &&... args) {
   return { { std::forward<Args>(args)... } };
@@ -847,155 +859,10 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     }
 
     if(!JumpTargets.haveBB){
-    SmallSet<unsigned, 1> ToIgnore;
-    ToIgnore = Translator.preprocess(InstructionList.get());
-
-    if (PTCLog.isEnabled()) {
-      std::stringstream Stream;
-      dumpTranslation(Stream, InstructionList.get());
-      PTCLog << Stream.str() << DoLog;
-    }
-
-    Variables.newFunction(Delimiter, InstructionList.get());
-    unsigned j = 0;
-    MDNode *MDOriginalInstr = nullptr;
-    bool StopTranslation = false;
-    uint64_t PC = VirtualAddress;
-    uint64_t NextPC = 0;
-    uint64_t EndPC = VirtualAddress + ConsumedSize;
-    const auto InstructionCount = InstructionList->instruction_count;
-    using IT = InstructionTranslator;
-    IT::TranslationResult Result;
-    bool ForceNewBlock = false;
-
-    // Handle the first PTC_INSTRUCTION_op_debug_insn_start
-    {
-      PTCInstruction *NextInstruction = nullptr;
-      for (unsigned k = 1; k < InstructionCount; k++) {
-        PTCInstruction *I = &InstructionList->instructions[k];
-        if (I->opc == PTC_INSTRUCTION_op_debug_insn_start
-            && ToIgnore.count(k) == 0) {
-          NextInstruction = I;
-          break;
-        }
-      }
-      PTCInstruction *Instruction = &InstructionList->instructions[j];
-      std::tie(Result,
-               MDOriginalInstr,
-               PC,
-               NextPC) = Translator.newInstruction(Instruction,
-                                                   NextInstruction,
-                                                   EndPC,
-                                                   true,
-                                                   false);
-      j++;
-      BlockPCs.push_back(PC);
-    }
-
-    // TODO: shall we move this whole loop in InstructionTranslator?
-    for (; j < InstructionCount && !StopTranslation; j++) {
-      if (ToIgnore.count(j) != 0)
-        continue;
-
-      PTCInstruction Instruction = InstructionList->instructions[j];
-      PTCOpcode Opcode = Instruction.opc;
-
-      Blocks.clear();
-      Blocks.push_back(Builder.GetInsertBlock());
-
-      switch (Opcode) {
-      case PTC_INSTRUCTION_op_discard:
-        // Instructions we don't even consider
-        break;
-      case PTC_INSTRUCTION_op_debug_insn_start: {
-        // Find next instruction, if there is one
-        PTCInstruction *NextInstruction = nullptr;
-        for (unsigned k = j + 1; k < InstructionCount; k++) {
-          PTCInstruction *I = &InstructionList->instructions[k];
-          if (I->opc == PTC_INSTRUCTION_op_debug_insn_start
-              && ToIgnore.count(k) == 0) {
-            NextInstruction = I;
-            break;
-          }
-        }
-
-        std::tie(Result,
-                 MDOriginalInstr,
-                 PC,
-                 NextPC) = Translator.newInstruction(&Instruction,
-                                                     NextInstruction,
-                                                     EndPC,
-                                                     false,
-                                                     ForceNewBlock);
-        ForceNewBlock = false;
-	BlockPCs.push_back(PC);
-      } break;
-      case PTC_INSTRUCTION_op_call: {
-        Result = Translator.translateCall(&Instruction);
-
-        // Sometimes libtinycode terminates a basic block with a call, in this
-        // case force a fallthrough
-        auto &IL = InstructionList;
-        if (j == IL->instruction_count - 1) {
-          BasicBlock *Target = JumpTargets.registerJT(EndPC,
-                                                      JTReason::PostHelper);
-          Builder.CreateBr(notNull(Target));
-        }
-
-      } break;
-
-      default:
-        Result = Translator.translate(&Instruction, PC, NextPC);
-        break;
-      }
-
-      switch (Result) {
-      case IT::Success:
-        // No-op
-        break;
-      case IT::Abort:
-        Builder.CreateCall(AbortFunction);
-        Builder.CreateUnreachable();
-        StopTranslation = true;
-        break;
-      case IT::Stop:
-        StopTranslation = true;
-        break;
-      case IT::ForceNewPC:
-        ForceNewBlock = true;
-        break;
-      }
-
-      // Create a new metadata referencing the PTC instruction we have just
-      // translated
-      std::stringstream PTCStringStream;
-      dumpInstruction(PTCStringStream, InstructionList.get(), j);
-      std::string PTCString = PTCStringStream.str() + "\n";
-      MDString *MDPTCString = MDString::get(Context, PTCString);
-      MDNode *MDPTCInstr = MDNode::getDistinct(Context, MDPTCString);
-
-      // Set metadata for all the new instructions
-      for (BasicBlock *Block : Blocks) {
-        BasicBlock::iterator I = Block->end();
-        while (I != Block->begin() && !(--I)->hasMetadata()) {
-          I->setMetadata(OriginalInstrMDKind, MDOriginalInstr);
-          I->setMetadata(PTCInstrMDKind, MDPTCInstr);
-        }
-      }
-    } // End loop over instructions
-
-    if (ForceNewBlock)
-      JumpTargets.registerJT(EndPC, JTReason::PostHelper);
-
-    // We might have a leftover block, probably due to the block created after
-    // the last call to exit_tb
-    auto *LastBlock = Builder.GetInsertBlock();
-    if (LastBlock->empty()){
-      LastBlock->eraseFromParent();}
-    else if (!LastBlock->rbegin()->isTerminator()) {
-      // Something went wrong, probably a mistranslation
-      Builder.CreateUnreachable();
-    }
+    IRtoIR(InstructionList,Translator,Variables,JumpTargets,AbortFunction,
+           Delimiter,Blocks,Builder,BlockBRs,
+           VirtualAddress,ConsumedSize,BlockPCs,Context,
+	   OriginalInstrMDKind,PTCInstrMDKind);  
 
     if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect or *ptc.isRet)
       JumpTargets.harvestNextAddrofBr();
@@ -1335,4 +1202,165 @@ void CodeGenerator::serialize() {
     std::ofstream Output(OutputPath);
     Debug->print(Output, false);
   }
+}
+
+void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator &Translator, VariableManager &Variables,
+            JumpTargetManager JumpTargets,
+            llvm::Constant* &AbortFunction,
+            llvm::StoreInst* &Delimiter,
+            std::vector<BasicBlock *> &Blocks, IRBuilder<> &Builder,
+            llvm::BasicBlock* &BlockBRs,uint64_t &VirtualAddress, size_t ConsumedSize,
+            std::vector<uint64_t> &BlockPCs,
+            LLVMContext &Context,
+            unsigned OriginalInstrMDKind,
+            unsigned PTCInstrMDKind){ 
+    SmallSet<unsigned, 1> ToIgnore;
+    ToIgnore = Translator.preprocess(InstructionList.get());
+
+    if (PTCLog.isEnabled()) {
+      std::stringstream Stream;
+      dumpTranslation(Stream, InstructionList.get());
+      PTCLog << Stream.str() << DoLog;
+    }
+
+    Variables.newFunction(Delimiter, InstructionList.get());
+    unsigned j = 0;
+    MDNode *MDOriginalInstr = nullptr;
+    bool StopTranslation = false;
+    uint64_t PC = VirtualAddress;
+    uint64_t NextPC = 0;
+    uint64_t EndPC = VirtualAddress + ConsumedSize;
+    const auto InstructionCount = InstructionList->instruction_count;
+    using IT = InstructionTranslator;
+    IT::TranslationResult Result;
+    bool ForceNewBlock = false;
+
+    // Handle the first PTC_INSTRUCTION_op_debug_insn_start
+    {
+      PTCInstruction *NextInstruction = nullptr;
+      for (unsigned k = 1; k < InstructionCount; k++) {
+        PTCInstruction *I = &InstructionList->instructions[k];
+        if (I->opc == PTC_INSTRUCTION_op_debug_insn_start
+            && ToIgnore.count(k) == 0) {
+          NextInstruction = I;
+          break;
+        }
+      }
+      PTCInstruction *Instruction = &InstructionList->instructions[j];
+      std::tie(Result,
+               MDOriginalInstr,
+               PC,
+               NextPC) = Translator.newInstruction(Instruction,
+                                                   NextInstruction,
+                                                   EndPC,
+                                                   true,
+                                                   false);
+      j++;
+      BlockPCs.push_back(PC);
+    }
+
+    // TODO: shall we move this whole loop in InstructionTranslator?
+    for (; j < InstructionCount && !StopTranslation; j++) {
+      if (ToIgnore.count(j) != 0)
+        continue;
+
+      PTCInstruction Instruction = InstructionList->instructions[j];
+      PTCOpcode Opcode = Instruction.opc;
+
+      Blocks.clear();
+      Blocks.push_back(Builder.GetInsertBlock());
+
+      switch (Opcode) {
+      case PTC_INSTRUCTION_op_discard:
+        // Instructions we don't even consider
+        break;
+      case PTC_INSTRUCTION_op_debug_insn_start: {
+        // Find next instruction, if there is one
+        PTCInstruction *NextInstruction = nullptr;
+        for (unsigned k = j + 1; k < InstructionCount; k++) {
+          PTCInstruction *I = &InstructionList->instructions[k];
+          if (I->opc == PTC_INSTRUCTION_op_debug_insn_start
+              && ToIgnore.count(k) == 0) {
+            NextInstruction = I;
+            break;
+          }
+        }
+
+        std::tie(Result,
+                 MDOriginalInstr,
+                 PC,
+                 NextPC) = Translator.newInstruction(&Instruction,
+                                                     NextInstruction,
+                                                     EndPC,
+                                                     false,
+                                                     ForceNewBlock);
+        ForceNewBlock = false;
+	BlockPCs.push_back(PC);
+      } break;
+      case PTC_INSTRUCTION_op_call: {
+        Result = Translator.translateCall(&Instruction);
+
+        // Sometimes libtinycode terminates a basic block with a call, in this
+        // case force a fallthrough
+        auto &IL = InstructionList;
+        if (j == IL->instruction_count - 1) {
+          BasicBlock *Target = JumpTargets.registerJT(EndPC,
+                                                      JTReason::PostHelper);
+          Builder.CreateBr(notNull(Target));
+        }
+
+      } break;
+
+      default:
+        Result = Translator.translate(&Instruction, PC, NextPC);
+        break;
+      }
+
+      switch (Result) {
+      case IT::Success:
+        // No-op
+        break;
+      case IT::Abort:
+        Builder.CreateCall(AbortFunction);
+        Builder.CreateUnreachable();
+        StopTranslation = true;
+        break;
+      case IT::Stop:
+        StopTranslation = true;
+        break;
+      case IT::ForceNewPC:
+        ForceNewBlock = true;
+        break;
+      }
+
+      // Create a new metadata referencing the PTC instruction we have just
+      // translated
+      std::stringstream PTCStringStream;
+      dumpInstruction(PTCStringStream, InstructionList.get(), j);
+      std::string PTCString = PTCStringStream.str() + "\n";
+      MDString *MDPTCString = MDString::get(Context, PTCString);
+      MDNode *MDPTCInstr = MDNode::getDistinct(Context, MDPTCString);
+
+      // Set metadata for all the new instructions
+      for (BasicBlock *Block : Blocks) {
+        BasicBlock::iterator I = Block->end();
+        while (I != Block->begin() && !(--I)->hasMetadata()) {
+          I->setMetadata(OriginalInstrMDKind, MDOriginalInstr);
+          I->setMetadata(PTCInstrMDKind, MDPTCInstr);
+        }
+      }
+    } // End loop over instructions
+
+    if (ForceNewBlock)
+      JumpTargets.registerJT(EndPC, JTReason::PostHelper);
+
+    // We might have a leftover block, probably due to the block created after
+    // the last call to exit_tb
+    auto *LastBlock = Builder.GetInsertBlock();
+    if (LastBlock->empty()){
+      LastBlock->eraseFromParent();}
+    else if (!LastBlock->rbegin()->isTerminator()) {
+      // Something went wrong, probably a mistranslation
+      Builder.CreateUnreachable();
+    }
 }
