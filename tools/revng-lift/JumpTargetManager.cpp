@@ -2135,6 +2135,8 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
 }
 
 void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBlock *thisBlock){
+  if(thisBlock==nullptr)
+    return;
   BasicBlock::iterator I = --(thisBlock->end());  
   if(auto branch = dyn_cast<BranchInst>(I)){
     if(branch->isUnconditional()){
@@ -2778,11 +2780,6 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
 }
 
 void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
-//  if(!isDataSegmAddr(ptc.regs[R_ESP]))
-//    return;
-  if(thisBlock==nullptr)
-    return;
-
   BasicBlock::reverse_iterator I(thisBlock->rbegin());
   BasicBlock::reverse_iterator rend(thisBlock->rend());
   bool staticFlag = 1;
