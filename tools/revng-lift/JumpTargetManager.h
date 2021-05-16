@@ -251,6 +251,9 @@ public:
   std::vector<uint64_t> IllegalStaticAddrs;
   bool isIllegalStaticAddr(uint64_t pc);
 
+  void handleInvalidAddr(uint64_t &DynamicVirtualAddress);
+  void handleLibCalling(uint64_t &DynamicVirtualAddress);
+
   void handleIndirectCall(llvm::BasicBlock *thisBlock, uint64_t thisAddr, bool StaticFlag);
   uint64_t handleIllegalMemoryAccess(llvm::BasicBlock *thisBlock, uint64_t thisAddr, size_t ConsumedSize);
   llvm::BasicBlock *getSplitedBlock(llvm::BranchInst *branch);

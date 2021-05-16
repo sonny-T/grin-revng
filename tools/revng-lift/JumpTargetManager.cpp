@@ -2134,6 +2134,29 @@ void JumpTargetManager::harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uin
   }
 }
 
+void JumpTargetManager::handleLibCalling(uint64_t &DynamicVirtualAddress){
+    if(DynamicVirtualAddress == 0)
+        return;
+    
+    if(!isExecutableAddress(DynamicVirtualAddress)){
+        DynamicVirtualAddress = ptc.run_library();
+        return;
+    }
+}
+
+void JumpTargetManager::handleInvalidAddr(uint64_t &DynamicVirtualAddress){
+    //handle invalid address
+    if(!isExecutableAddress(DynamicVirtualAddress)){
+        DynamicVirtualAddress = 0;
+        return;
+    }
+    if(*ptc.isRet){
+        std::set<uint64_t>::iterator Target = BranchAddrs.find(DynamicVirtualAddress);
+        if(Target == BranchAddrs.end())
+	  DynamicVirtualAddress = 0;
+    }
+}
+
 void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBlock *thisBlock){
   if(thisBlock==nullptr)
     return;

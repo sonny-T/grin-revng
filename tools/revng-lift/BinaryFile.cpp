@@ -68,6 +68,7 @@ BinaryFile::BinaryFile(std::string FilePath, uint64_t BaseAddress) :
 
   textStartAddr = 0;
   rodataStartAddr = 0;
+  dataStartAddr = 0;
   ehframeEndAddr = 0;
 
   using RD = RelocationDescription;
@@ -448,14 +449,16 @@ void BinaryFile::parseELF(object::ObjectFile *TheBinary, uint64_t BaseAddress) {
           revng_assert(not EHFrameAddress, "Duplicate .eh_frame");
           EHFrameAddress = relocate(static_cast<uint64_t>(Section.sh_addr));
           EHFrameSize = static_cast<uint64_t>(Section.sh_size);
-	  ehframeEndAddr = Section.sh_addr + Section.sh_size;
+	  ehframeEndAddr = relocate(static_cast<uint64_t>(Section.sh_addr + Section.sh_size));
         } else if (Name == ".dynamic") {
           revng_assert(not DynamicAddress, "Duplicate .dynamic");
           DynamicAddress = relocate(static_cast<uint64_t>(Section.sh_addr));
         } else if (Name == ".rodata"){
-	  rodataStartAddr = Section.sh_addr;
+	  rodataStartAddr = relocate(static_cast<uint64_t>(Section.sh_addr)); 
 	} else if (Name == ".init"){
-          textStartAddr = Section.sh_addr;
+          textStartAddr = relocate(static_cast<uint64_t>(Section.sh_addr));
+        } else if (Name == ".data"){
+          dataStartAddr = relocate(static_cast<uint64_t>(Section.sh_addr));
         }
       }
     }

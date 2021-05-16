@@ -170,7 +170,6 @@ static void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator
             unsigned OriginalInstrMDKind,
             unsigned PTCInstrMDKind
             );
-static void handleInvalidAddr(uint64_t &DynamicVirtualAddress, JumpTargetManager &JumpTargets); 
 static void selectNewBranchEntry(JumpTargetManager &JumpTargets,
                                  uint64_t &DynamicVirtualAddress,
                                  llvm::BasicBlock* &srcBB,
@@ -270,13 +269,13 @@ CodeGenerator::CodeGenerator(BinaryFile &Binary,
 
   for (SegmentInfo &Segment : Binary.segments()) {
     // If it's executable register it as a valid code area
-    if (Segment.IsExecutable) {
-      // We ignore possible p_filesz-p_memsz mismatches, zeros wouldn't be
-      // useful code anyway
-      ptc.mmap(Segment.StartVirtualAddress,
-               static_cast<const void *>(Segment.Data.data()),
-               static_cast<size_t>(Segment.Data.size()));
-    }
+//    if (Segment.IsExecutable) {
+//      // We ignore possible p_filesz-p_memsz mismatches, zeros wouldn't be
+//      // useful code anyway
+//      ptc.mmap(Segment.StartVirtualAddress,
+//               static_cast<const void *>(Segment.Data.data()),
+//               static_cast<size_t>(Segment.Data.size()));
+//    }
 
     std::string Name = Segment.generateName();
 
@@ -789,6 +788,8 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 //    VirtualAddress = Binary.entryPoint();
 //  }
   VirtualAddress = Binary.entryPoint();
+  ptc.data_start(Binary.dataStartAddr, VirtualAddress);
+  ptc.run_library();
   JumpTargets.registerJT(VirtualAddress, JTReason::GlobalData);
 
   // Initialize the program counter
@@ -916,6 +917,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress,BlockBRs);
  
     if(!traverseFLAG){
+      JumpTargets.handleLibCalling(DynamicVirtualAddress);
       if(DynamicVirtualAddress){
         auto tmpBB = JumpTargets.registerJT(DynamicVirtualAddress,JTReason::GlobalData);
         if(JumpTargets.haveBB){
@@ -937,7 +939,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     }////?end if(!traverseFLAG)
     
     if(traverseFLAG){
-      handleInvalidAddr(DynamicVirtualAddress,JumpTargets); 
+      JumpTargets.handleInvalidAddr(DynamicVirtualAddress); 
       // Some branch destination addr is 0 
       if((JumpTargets.haveBB || DynamicVirtualAddress == 0 ) and
   		    !JumpTargets.BranchTargets.empty())
@@ -1307,18 +1309,7 @@ static void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator
       Builder.CreateUnreachable();
     }
 }
-static void handleInvalidAddr(uint64_t &DynamicVirtualAddress, JumpTargetManager &JumpTargets){
-    //handle invalid address
-    if(!JumpTargets.isExecutableAddress(DynamicVirtualAddress)){
-        DynamicVirtualAddress = 0;
-        return;
-    }
-    if(*ptc.isRet){
-        std::set<uint64_t>::iterator Target = JumpTargets.BranchAddrs.find(DynamicVirtualAddress);
-        if(Target == JumpTargets.BranchAddrs.end())
-	  DynamicVirtualAddress = 0;
-    }
-}
+
 static void selectNewBranchEntry(JumpTargetManager &JumpTargets,
                                  uint64_t &DynamicVirtualAddress,
                                  llvm::BasicBlock* &srcBB,

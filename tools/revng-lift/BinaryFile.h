@@ -474,6 +474,7 @@ public:
 
   uint64_t textStartAddr;
   uint64_t rodataStartAddr;
+  uint64_t dataStartAddr;
   uint64_t ehframeEndAddr;
 
   const Architecture &architecture() const { return TheArchitecture; }
