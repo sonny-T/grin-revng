@@ -789,7 +789,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
 //  }
   VirtualAddress = Binary.entryPoint();
   ptc.data_start(Binary.dataStartAddr, VirtualAddress);
-  ptc.run_library();
+  ptc.run_library(1);
   JumpTargets.registerJT(VirtualAddress, JTReason::GlobalData);
 
   // Initialize the program counter
@@ -851,21 +851,18 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     size_t ConsumedSize = 0; 
 
     if(!traverseFLAG){
-      ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
+      ConsumedSize = ptc.translate(VirtualAddress,!JumpTargets.haveBB,InstructionList.get(),&DynamicVirtualAddress);
       tmpVA = VirtualAddress;
       JumpTargets.haveGlobalDatainRegs(GloData);
     }
-
-    if(traverseFLAG){
-      if(!JumpTargets.haveBB){
-        ConsumedSize = ptc.translate(VirtualAddress, InstructionList.get(),&DynamicVirtualAddress);
-        tmpVA = VirtualAddress;
-	JumpTargets.haveGlobalDatainRegs(GloData);
-      }else{
-        ptc_instruction_list_malloc(InstructionList.get());
-	errs()<<"Nop execute!\n";
-      }
+    if(traverseFLAG and !JumpTargets.haveBB){
+      ConsumedSize = ptc.translate(VirtualAddress,!JumpTargets.haveBB,InstructionList.get(),&DynamicVirtualAddress);
+      tmpVA = VirtualAddress;
+      JumpTargets.haveGlobalDatainRegs(GloData);
     }
+    if(JumpTargets.haveBB)
+      ptc_instruction_list_malloc(InstructionList.get());
+    
 
     if(!JumpTargets.haveBB){
       IRtoIR(InstructionList,Translator,Variables,JumpTargets,AbortFunction,
@@ -878,6 +875,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       if(*ptc.isCall)
         JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
   
+      JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
       if(!GloData.empty()){
         JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
         GloData.clear();
@@ -886,7 +884,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         JumpTargets.harvestBlockPCs(BlockPCs);
         BlockPCFlag = false; 
       }
-      JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
       JumpTargets.harvestStaticAddr(BlockBRs);
     }////?end if(!JumpTargets.haveBB)
 
@@ -1319,7 +1316,7 @@ static void selectNewBranchEntry(JumpTargetManager &JumpTargets,
     std::tie(DynamicVirtualAddress, srcBB, srcAddr) = JumpTargets.BranchTargets.front();
     JumpTargets.BranchTargets.erase(JumpTargets.BranchTargets.begin());
     ptc.deletCPULINEState();
-    errs()<<"Init--------------------\n";
+    errs()<<"------------------------\n";
 }
  static void harvestbranchBB(InstructionTranslator &Translator,
                             JumpTargetManager &JumpTargets,

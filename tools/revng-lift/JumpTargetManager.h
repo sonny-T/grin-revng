@@ -241,7 +241,7 @@ public:
   void harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64_t thisAddr);
   void harvestVirtualTableAddr(llvm::BasicBlock *thisBlock, uint64_t base); 
   int64_t GetConst(llvm::Instruction *I, llvm::Value *v);
-  void registerJumpTable(llvm::BasicBlock *thisBlock, uint64_t thisAddr, int64_t base, int64_t offset);
+  void registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Instruction *shl, llvm::Instruction *add, uint64_t thisAddr, int64_t base, int64_t offset);
   bool handleStaticAddr(void);
   void harvestBlockPCs(std::vector<uint64_t> &BlockPCs);
   void StaticToUnexplore(void);

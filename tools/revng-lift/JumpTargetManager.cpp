@@ -1243,20 +1243,16 @@ void JumpTargetManager::purgeTranslation(BasicBlock *Start) {
   // Remove Start, since we want to keep it (even if empty)
   Visited.erase(Start);
 
-  errs()<<Start->getName()<<" ---------------------------\n";
-
   for (BasicBlock *BB : Visited) {
     // We might have some predecessorless basic blocks jumping to us, purge them
     // TODO: why this?
     while (pred_begin(BB) != pred_end(BB)) {
       BasicBlock *Predecessor = *pred_begin(BB);
       revng_assert(pred_empty(Predecessor));
-      errs()<<Predecessor->getName()<<" ---------------------------\n";
       Predecessor->eraseFromParent();
     }
 
     revng_assert(BB->use_empty());
-    errs()<<BB->getName()<<" ---------------------------\n";
     BB->eraseFromParent();
   }
 }
@@ -2139,7 +2135,7 @@ void JumpTargetManager::handleLibCalling(uint64_t &DynamicVirtualAddress){
         return;
     
     if(!isExecutableAddress(DynamicVirtualAddress)){
-        DynamicVirtualAddress = ptc.run_library();
+        DynamicVirtualAddress = ptc.run_library(2);
         return;
     }
 }
@@ -2179,38 +2175,97 @@ void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBloc
   SrcToDests[src] = tmp;
 }
 
-void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, uint64_t thisAddr, int64_t base, int64_t offset){
-  if(isExecutableAddress((uint64_t)base))
-    return;
+void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Instruction *shl, llvm::Instruction *add, uint64_t thisAddr, int64_t base, int64_t offset){
+  auto Path = "JumpTable.log";
+  std::ofstream JTAddr;
+  JTAddr.open(Path,std::ofstream::out | std::ofstream::app);
+  JTAddr <<"0x"<< std::hex << thisAddr <<"\n";
+
+  if(isExecutableAddress((uint64_t)base)){
+    JTAddr.close();
+    return;}
     //revng_abort();
-  if(!isELFDataSegmAddr((uint64_t)base))
-    return;
+  if(!isELFDataSegmAddr((uint64_t)base)){
+    JTAddr.close();
+    return;}
   JumpTableBase[base] = offset;
-  for(uint64_t n = 0;;n++){
-    uint64_t addr = (uint64_t)(base + (n << offset));
-    uint64_t niube = addr;
-    while(isELFDataSegmAddr(addr)){
-      auto pre = addr;
-      addr = *((uint64_t *)addr);
-      if(pre==addr or addr==niube)
-          break;
-    }
 
-    if(addr==0)
-        continue;
-    if(isExecutableAddress(addr)){
-        
-        auto Path = "JumpTable.log";
-        std::ofstream JTAddr;
-        JTAddr.open(Path,std::ofstream::out | std::ofstream::app);
-        JTAddr <<"---------> "<< std::hex << addr <<"\n";
-        JTAddr.close();
-
-        harvestBTBasicBlock(thisBlock,thisAddr,addr);
+  // Get index
+  uint32_t index = UndefineOP;
+  BasicBlock::reverse_iterator I(shl);
+  BasicBlock::reverse_iterator rend(thisBlock->rend());
+  for(; I!=rend; I++){
+    if(I->getOpcode() == Instruction::Load){
+      auto load = dyn_cast<LoadInst>(&*I);
+      auto v = load->getPointerOperand();
+      if(dyn_cast<Constant>(v)){
+        auto str = v->getName();
+        index = REGLABLE(StrToInt(str.data()));
+        if(index == UndefineOP)
+            revng_abort("Unkown register OP!\n");
+        break;
+      }
     }
-    else
-      break;
   }
+  // Get start PC
+  auto start = getInstructionPC(shl);  
+  revng_assert(start);
+
+  // Running gadgets
+  bool recover = false;
+  if(ptc.is_stack_addr(ptc.regs[R_ESP])){
+    ptc.storeStack();
+    recover = true;
+  }
+  storeCPURegister();
+  for(int i=0; i<2000;i++){
+    ptc.regs[index] = i; 
+    int64_t addr = ptc.exec(start);
+    auto tmp = getStaticAddrfromDestRegs(add,thisAddr);
+    if(tmp==1){
+      if(*ptc.isIndirect or *ptc.isIndirectJmp){
+        if(isExecutableAddress(addr)){
+          JTAddr <<"---------> "<< std::hex << addr <<"\n";
+          harvestBTBasicBlock(thisBlock,thisAddr,addr);
+          continue;
+        } 
+      }
+      break;
+    }else{
+      if(tmp==0)
+          continue;
+      JTAddr <<"---------> "<< std::hex << tmp <<"\n"; 
+      harvestBTBasicBlock(thisBlock,thisAddr,tmp);
+    }
+  }
+  recoverCPURegister();
+  if(recover)
+    ptc.recoverStack();
+
+
+//  for(uint64_t n = 0;;n++){
+//    uint64_t addr = (uint64_t)(base + (n << offset));
+//    uint64_t niube = addr;
+//    while(isELFDataSegmAddr(addr)){
+//      auto pre = addr;
+//      addr = *((uint64_t *)addr);
+//      if(pre==addr or addr==niube)
+//          break;
+//    }
+//
+//    if(addr==0)
+//        continue;
+//    if(isExecutableAddress(addr)){
+//       
+//        JTAddr <<"---------> "<< std::hex << addr <<"\n";
+//
+//        harvestBTBasicBlock(thisBlock,thisAddr,addr);
+//    }
+//    else
+//      break;
+//  }
+ 
+  JTAddr.close();
 }
 
 void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64_t thisAddr){
@@ -2219,8 +2274,8 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
 
   auto I = begin;
   uint32_t isJumpTable = 0;
-  uint64_t PC = 0;
   llvm::Instruction *shl = nullptr;
+  llvm::Instruction *shlIt = nullptr;
   llvm::Instruction *add = nullptr;
   int64_t base = 0;
   int64_t offset = 0;
@@ -2231,11 +2286,10 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
       auto call = dyn_cast<CallInst>(&*I);
       auto callee = call->getCalledFunction();
       if(callee != nullptr and callee->getName() == "newpc"){
-        PC = getLimitedValue(call->getArgOperand(0));
         isJumpTable  = 0; 
         shl = nullptr;
         if(offset){
-          registerJumpTable(thisBlock,thisAddr,base,offset);
+          registerJumpTable(thisBlock,shlIt,add,thisAddr,base,offset);
           offset = 0;
           base = 0;
         }
@@ -2245,6 +2299,7 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
       isJumpTable = 0;
       isJumpTable++;
       shl = dyn_cast<llvm::Instruction>(I);
+      shlIt = dyn_cast<llvm::Instruction>(I);
     }
    
     if(op==Instruction::Add){
@@ -2256,18 +2311,12 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
         }
         add = dyn_cast<llvm::Instruction>(I);
         base = base + GetConst(add, add->getOperand(1)); 
-       
-        auto Path = "JumpTable.log";
-        std::ofstream JTAddr;
-        JTAddr.open(Path,std::ofstream::out | std::ofstream::app);
-        JTAddr <<"0x"<< std::hex << PC <<"\n";
-        JTAddr.close();
       }
     }
   }
   
   if(offset)
-    registerJumpTable(thisBlock,thisAddr,base,offset);
+    registerJumpTable(thisBlock,shlIt,add,thisAddr,base,offset);
 
 }
 
@@ -3560,7 +3609,7 @@ uint64_t JumpTargetManager::getStaticAddrfromDestRegs(llvm::Instruction *I, uint
     auto store = dyn_cast<llvm::StoreInst>(I);
     v = store->getPointerOperand();
   }
-
+  bool flag = false;
   it++;
   for(; it!=end; it++){ 
     switch(it->getOpcode()){
@@ -3582,7 +3631,10 @@ uint64_t JumpTargetManager::getStaticAddrfromDestRegs(llvm::Instruction *I, uint
               auto op = REGLABLE(number);
               if(op==UndefineOP)
                   continue;
-              return ptc.regs[op];
+              if(isExecutableAddress(ptc.regs[op]))
+                  return ptc.regs[op];
+              if(ptc.regs[op] == 0)
+                  flag = true;
             }
         }
 	break;
@@ -3599,6 +3651,9 @@ uint64_t JumpTargetManager::getStaticAddrfromDestRegs(llvm::Instruction *I, uint
       }  
     }
   }//??end for
+  if(flag)
+    return 0;
+
   return 1;
 }
 
