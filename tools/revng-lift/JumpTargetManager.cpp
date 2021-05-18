@@ -2280,7 +2280,6 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
       isJumpTable = 0;
       isJumpTable++;
       shl = dyn_cast<llvm::Instruction>(I);
-      shlIt = dyn_cast<llvm::Instruction>(I);
     }
    
     if(op==Instruction::Add){
@@ -2288,6 +2287,7 @@ void JumpTargetManager::harvestJumpTableAddr(llvm::BasicBlock *thisBlock, uint64
       if(isJumpTable==3 or isJumpTable==5){
         if(shl){
           offset = GetConst(shl, shl->getOperand(1));
+          shlIt = shl;
           shl = nullptr;
         }
         add = dyn_cast<llvm::Instruction>(I);
