@@ -2833,32 +2833,10 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
 }
 
 void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
-  BasicBlock::reverse_iterator I(thisBlock->rbegin());
-  BasicBlock::reverse_iterator rend(thisBlock->rend());
-  bool staticFlag = 1;
+  BasicBlock::iterator I(thisBlock->begin());
+  BasicBlock::iterator end(thisBlock->end());
 
-  auto branch = dyn_cast<BranchInst>(&*I); 
-  if(branch && !branch->isConditional())
-    staticFlag = 0;
-
-  for(; I!=rend; I++){
-    if(staticFlag){
-      auto callI = dyn_cast<CallInst>(&*I);
-      if(callI){
-        auto *Callee = callI->getCalledFunction();
-  	if(Callee != nullptr && Callee->getName() == "newpc")
-          staticFlag = 0;
-      }
-    }
-    if(!staticFlag){
-      if(I->getOpcode()==Instruction::Call){
-        auto other = dyn_cast<CallInst>(&*I);
-	if(other){
-          auto *Callee = other->getCalledFunction();
-	  if(Callee != nullptr && Callee->getName() != "newpc")
-	    staticFlag = 1;
-	}
-      }
+  for(; I!=end; I++){
       if(I->getOpcode()==Instruction::Store){
         auto store = dyn_cast<llvm::StoreInst>(&*I);
         auto v = store->getValueOperand();
@@ -2917,7 +2895,6 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
           }
         }
       }
-    }
   }
 }
 

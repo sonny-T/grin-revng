@@ -2728,6 +2728,7 @@ isFirst	include/revng/Support/IRHelpers.h	/^inline bool isFirst(T *I) {$/;"	f
 isForced	tools/revng-lift/OSRA.cpp	/^  bool isForced(std::map<MapIndex, MapValue>::iterator &It) const {$/;"	f	class:BVMap	file:
 isFunctionCall	include/revng/BasicAnalyses/GeneratedCodeBasicInfo.h	/^  bool isFunctionCall(llvm::BasicBlock *BB) const {$/;"	f	class:GeneratedCodeBasicInfo
 isFunctionCall	include/revng/BasicAnalyses/GeneratedCodeBasicInfo.h	/^  bool isFunctionCall(llvm::TerminatorInst *T) const {$/;"	f	class:GeneratedCodeBasicInfo
+isGOT	tools/revng-lift/JumpTargetManager.cpp	/^bool JumpTargetManager::isGOT(uint64_t pc){$/;"	f	class:JumpTargetManager
 isGlobalData	tools/revng-lift/JumpTargetManager.cpp	/^bool JumpTargetManager::isGlobalData(uint64_t pc){$/;"	f	class:JumpTargetManager
 isGlobalDataNoRO	tools/revng-lift/JumpTargetManager.cpp	/^bool JumpTargetManager::isGlobalDataNoRO(uint64_t pc){$/;"	f	class:JumpTargetManager
 isIdentityLoad	lib/StackAnalysis/Cache.h	/^  bool isIdentityLoad(const llvm::LoadInst *L) const {$/;"	f	class:StackAnalysis::Cache
@@ -3273,7 +3274,7 @@ registerFunction	lib/StackAnalysis/InterproceduralAnalysis.h	/^  void registerFu
 registerInstruction	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerInstruction(uint64_t PC,$/;"	f	class:JumpTargetManager
 registerJT	tools/revng-lift/JumpTargetManager.cpp	/^JumpTargetManager::registerJT(uint64_t PC, JTReason::Values Reason) {$/;"	f	class:JumpTargetManager
 registerJT	tools/revng-lift/JumpTargetManager.h	/^  void registerJT(llvm::BasicBlock *BB, JTReason::Values Reason) {$/;"	f	class:JumpTargetManager
-registerJumpTable	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Instruction *shl, llvm::Instruction *add, uint64_t thisAddr, int64_t base, int64_t offset){$/;"	f	class:JumpTargetManager
+registerJumpTable	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, $/;"	f	class:JumpTargetManager
 registerKiller	tools/revng-lift/NoReturnAnalysis.cpp	/^void NoReturnAnalysis::registerKiller(uint64_t StoredValue,$/;"	f	class:NoReturnAnalysis
 registerKiller	tools/revng-lift/NoReturnAnalysis.h	/^  void registerKiller(llvm::BasicBlock *BB, KillReason::Values Reason) {$/;"	f	class:NoReturnAnalysis
 registerLTR	tools/revng-lift/OSRA.cpp	/^  bool registerLTR(BasicBlock *BB) { return LTR.insert(BB).second; }$/;"	f	class:Reacher
