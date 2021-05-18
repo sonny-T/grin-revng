@@ -3273,7 +3273,7 @@ registerFunction	lib/StackAnalysis/InterproceduralAnalysis.h	/^  void registerFu
 registerInstruction	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerInstruction(uint64_t PC,$/;"	f	class:JumpTargetManager
 registerJT	tools/revng-lift/JumpTargetManager.cpp	/^JumpTargetManager::registerJT(uint64_t PC, JTReason::Values Reason) {$/;"	f	class:JumpTargetManager
 registerJT	tools/revng-lift/JumpTargetManager.h	/^  void registerJT(llvm::BasicBlock *BB, JTReason::Values Reason) {$/;"	f	class:JumpTargetManager
-registerJumpTable	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, uint64_t thisAddr, int64_t base, int64_t offset){$/;"	f	class:JumpTargetManager
+registerJumpTable	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Instruction *shl, llvm::Instruction *add, uint64_t thisAddr, int64_t base, int64_t offset){$/;"	f	class:JumpTargetManager
 registerKiller	tools/revng-lift/NoReturnAnalysis.cpp	/^void NoReturnAnalysis::registerKiller(uint64_t StoredValue,$/;"	f	class:NoReturnAnalysis
 registerKiller	tools/revng-lift/NoReturnAnalysis.h	/^  void registerKiller(llvm::BasicBlock *BB, KillReason::Values Reason) {$/;"	f	class:NoReturnAnalysis
 registerLTR	tools/revng-lift/OSRA.cpp	/^  bool registerLTR(BasicBlock *BB) { return LTR.insert(BB).second; }$/;"	f	class:Reacher

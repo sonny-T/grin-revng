@@ -326,6 +326,7 @@ public:
                      bool indirect,
                      uint32_t crash,
                      std::vector<uint64_t>& tempVec);
+  bool isGOT(uint64_t pc);
   bool isROData(uint64_t pc);
   bool isGlobalData(uint64_t pc);
   bool isGlobalDataNoRO(uint64_t pc);

@@ -2175,7 +2175,12 @@ void JumpTargetManager::generateCFG(uint64_t src, uint64_t dest, llvm::BasicBloc
   SrcToDests[src] = tmp;
 }
 
-void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Instruction *shl, llvm::Instruction *add, uint64_t thisAddr, int64_t base, int64_t offset){
+void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, 
+                                          llvm::Instruction *shl, 
+                                          llvm::Instruction *add, 
+                                          uint64_t thisAddr, 
+                                          int64_t base, 
+                                          int64_t offset){
   auto Path = "JumpTable.log";
   std::ofstream JTAddr;
   JTAddr.open(Path,std::ofstream::out | std::ofstream::app);
@@ -2184,7 +2189,6 @@ void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Ins
   if(isExecutableAddress((uint64_t)base)){
     JTAddr.close();
     return;}
-    //revng_abort();
   if(!isELFDataSegmAddr((uint64_t)base)){
     JTAddr.close();
     return;}
@@ -2241,29 +2245,6 @@ void JumpTargetManager::registerJumpTable(llvm::BasicBlock *thisBlock, llvm::Ins
   recoverCPURegister();
   if(recover)
     ptc.recoverStack();
-
-
-//  for(uint64_t n = 0;;n++){
-//    uint64_t addr = (uint64_t)(base + (n << offset));
-//    uint64_t niube = addr;
-//    while(isELFDataSegmAddr(addr)){
-//      auto pre = addr;
-//      addr = *((uint64_t *)addr);
-//      if(pre==addr or addr==niube)
-//          break;
-//    }
-//
-//    if(addr==0)
-//        continue;
-//    if(isExecutableAddress(addr)){
-//       
-//        JTAddr <<"---------> "<< std::hex << addr <<"\n";
-//
-//        harvestBTBasicBlock(thisBlock,thisAddr,addr);
-//    }
-//    else
-//      break;
-//  }
  
   JTAddr.close();
 }
@@ -2883,6 +2864,8 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
         auto v = store->getValueOperand();
         if(dyn_cast<ConstantInt>(v)){
           auto pc = getLimitedValue(v);
+          if(isGOT(pc) and *ptc.isIndirectJmp)
+            StaticAddrs[*ptc.isIndirectJmp] = false;
 	  //Harvest virtual function table targets
 	  if(VirtualTable){
 	    if(isROData(pc))
@@ -3048,6 +3031,12 @@ void JumpTargetManager::handleGlobalStaticAddr(void){
     }
     ChainLoop = ChainLoop-1;  
   }
+}
+
+bool JumpTargetManager::isGOT(uint64_t pc){
+  if(DataSegmStartAddr<pc and pc<Binary.dataStartAddr)
+    return true;
+  return false;
 }
 
 bool JumpTargetManager::isROData(uint64_t pc){
