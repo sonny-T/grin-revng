@@ -288,7 +288,6 @@ public:
   void recoverCPURegister();
   bool isCase1(llvm::Instruction *I, uint64_t global);
   bool isCase2(llvm::Instruction *I);
-  bool getStaticAddrfromDestRegs(llvm::Instruction *I);
   bool getStaticAddrfromDestRegs1(llvm::Instruction *I, uint64_t global);
   uint64_t getStaticAddrfromDestRegs(llvm::Instruction *I, uint64_t bound);
   bool getGlobalDatafromRegs(llvm::Instruction *I, int64_t pre);
@@ -332,8 +331,8 @@ public:
   bool isGlobalDataNoRO(uint64_t pc);
   bool isJumpTabType(llvm::Instruction *I);
   bool isRecordGlobalBase(uint64_t base);
-  int64_t isRecordGadgetBlock(uint64_t base, llvm::BasicBlock *gadget);
-  bool haveBinaryOperation(llvm::Instruction *I);
+  int64_t isRecordGadgetBlock(uint64_t base);
+  std::pair<bool,bool> haveBinaryOperation(llvm::Instruction *I);
   bool haveDefOperation(llvm::Instruction *I, llvm::Value *v);
   bool haveDef2OP(llvm::Instruction *I, uint32_t op);
   void haveGlobalDatainRegs(std::map<uint32_t, uint64_t> &GloData);
@@ -359,6 +358,7 @@ public:
      static_global_I(nullptr),
      static_op(UndefineOP),
      indirect(false),
+     isloop(false),
      end(true) {}
    AssignGadge(uint64_t addr):
      global_addr(addr),
@@ -370,6 +370,7 @@ public:
      static_global_I(nullptr),
      static_op(UndefineOP),
      indirect(false),
+     isloop(false),
      end(true) {}
 
    uint64_t global_addr;
@@ -382,6 +383,7 @@ public:
    llvm::Instruction * static_global_I;
    uint32_t static_op;
    bool indirect;
+   bool isloop;
    bool end;
  };
  

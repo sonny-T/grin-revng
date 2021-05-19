@@ -2852,19 +2852,26 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
           // Harvest entry addresses stored in data segment
           StaticAddrsMap::iterator TargetIt = JumpTableBase.find(pc);
           if(isGlobalData(pc) and TargetIt==JumpTableBase.end()){
+
             AssignGadge AG(pc);
             assign_gadge.push_back({pc,AG});
             AllGlobalAddr[pc] = 1;
             if(isGlobalDataNoRO(pc))
               AllUnexploreGlobalAddr[pc] = thisBlock;
+
             int64_t pos = assign_gadge.size()-1; 
-            if(haveBinaryOperation(&*I)){
+            bool isAdd = false;
+            bool haveBO = false;
+            std::tie(isAdd, haveBO) = haveBinaryOperation(&*I);        
+ 
+            if(haveBO){
               assign_gadge[pos].second.operation_block = thisBlock;
               auto Itt = dyn_cast<llvm::Instruction>(&*I);
               assign_gadge[pos].second.global_I = Itt;
+              assign_gadge[pos].second.isloop = true;
               //if thisBlock is indirect or StaticAddr is stored in registers. 
               if(*ptc.isIndirect or *ptc.isIndirectJmp or 
-                  (getStaticAddrfromDestRegs(&*I) and 
+                  (getStaticAddrfromDestRegs1(&*I,0) and 
                                  !isCase1(&*I,pc) and 
                                  !isCase2(&*I)
                   ))
@@ -2885,6 +2892,7 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
                 if(!result){
                   assign_gadge[pos].second.operation_block = nullptr;
                   assign_gadge[pos].second.global_I = nullptr; 
+                  assign_gadge[pos].second.isloop = false;
                 }
               }
             }
@@ -2912,30 +2920,39 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
         auto reg = REGLABLE(number); 
         if(reg==UndefineOP) 
           continue;
+
         // If thisBlock only transfer baseGlobal, and there is no operation, skip it.
+        bool isadd = false;
+        bool haveBO = false;
+        std::tie(isadd, haveBO) = haveBinaryOperation(&*it);
         auto TargetIt = GloData.find(reg);
-        if(TargetIt!=GloData.end() and haveBinaryOperation(&*it) and !isJumpTabType(&*it)){
+        if(TargetIt!=GloData.end() and haveBO and !isJumpTabType(&*it)){
+
+          //Get assign_gadge 
           auto baseGlobal = TargetIt->second;
-          //TODO: offset is or not const
-          //if(haveDefOperation(&*it,v))
-          //  return;
-          int64_t i = isRecordGadgetBlock(baseGlobal,thisBlock);
+          int64_t i = isRecordGadgetBlock(baseGlobal);
 	  if(i==-1){
 	    AssignGadge AG(baseGlobal);
 	    assign_gadge.push_back({baseGlobal,AG});
             AllGlobalAddr[baseGlobal] = 1;
 	    i = assign_gadge.size()-1;
 	  }
+
+          //Preserve this assign_gadge information
           uint32_t tmpOP = UndefineOP;
-          // global_I is an instruction to operate global data
           auto tmpBB = assign_gadge[i].second.operation_block;
           auto tmpI = assign_gadge[i].second.global_I;
           tmpOP = assign_gadge[i].second.op;
+          auto tmpAdd = assign_gadge[i].second.isloop; 
 
+          //Assign new info to this assign_gadge
 	  assign_gadge[i].second.operation_block = thisBlock;
           auto itt= dyn_cast<llvm::Instruction>(it); 
           assign_gadge[i].second.global_I = itt;
           assign_gadge[i].second.op = reg;
+          assign_gadge[i].second.isloop = isadd;
+
+          //Get static addr or global addr from this assign_gadge operations
           if(*ptc.isIndirect or *ptc.isIndirectJmp or getStaticAddrfromDestRegs1(&*it,baseGlobal)){
             assign_gadge[i].second.static_addr_block = thisBlock;
             assign_gadge[i].second.operation_block = nullptr;
@@ -2943,10 +2960,10 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
             if(*ptc.isIndirect or *ptc.isIndirectJmp)
               assign_gadge[i].second.indirect = true;  
             harvestCodePointerInDataSegment(i);
-            break;
-          }else{
-            auto result = getGlobalDatafromRegs(&*it,i);
-            if(result){
+            continue;
+          }
+          auto result = getGlobalDatafromRegs(&*it,i);
+          if(result){
               if(assign_gadge[i].second.static_addr_block){
                 assign_gadge[i].second.static_global_I = tmpI;
                 assign_gadge[i].second.static_op = tmpOP;
@@ -2954,15 +2971,15 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
               }
               assign_gadge[i].second.end = false;
               AllGadget[thisBlock] = 1;
-            }
-            if(!result){
-              assign_gadge[i].second.operation_block = tmpBB;
-              assign_gadge[i].second.global_I = tmpI;
-              assign_gadge[i].second.op = tmpOP;
-            }
-            break;
+              continue;
           }
-        }
+
+          //Restore original assign_gadge info
+          assign_gadge[i].second.operation_block = tmpBB;
+          assign_gadge[i].second.global_I = tmpI;
+          assign_gadge[i].second.op = tmpOP;
+          assign_gadge[i].second.isloop = tmpAdd;
+        }//end if(Targ...
       }
     }
   }//?end for? 
@@ -3087,7 +3104,7 @@ bool JumpTargetManager::isRecordGlobalBase(uint64_t base){
   return false;
 }
 
-int64_t JumpTargetManager::isRecordGadgetBlock(uint64_t base, llvm::BasicBlock *gadget){
+int64_t JumpTargetManager::isRecordGadgetBlock(uint64_t base){
 //  std::map<llvm::BasicBlock *,uint32_t>::iterator Target = AllGadget.find(gadget);
 //  if(Target!=AllGadget.end())
 //      return -2;
@@ -3127,7 +3144,7 @@ bool JumpTargetManager::isJumpTabType(llvm::Instruction *I){
 }
 
 // If this value have a binary operation and assign to reg/mem.
-bool JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
+std::pair<bool,bool> JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
   BasicBlock::iterator it(I);
   BasicBlock::iterator end = I->getParent()->end();
   BasicBlock::iterator lastInst(I->getParent()->back());
@@ -3140,6 +3157,7 @@ bool JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
 
   bool flag = false;
   bool inttoptrflag = false;
+  llvm::Value *last = nullptr;
   it++;
   for(; it!=end; it++){ 
     switch(it->getOpcode()){
@@ -3157,30 +3175,34 @@ bool JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
         }
         break;
       }
-      case llvm::Instruction::Call:
+      case llvm::Instruction::Call:{
+        auto callI = dyn_cast<CallInst>(&*it);
+        auto *Callee = callI->getCalledFunction();
+        if(Callee != nullptr && Callee->getName() == "newpc"){
+          if(flag or inttoptrflag)
+            return {false,false};
+        }
+        last = nullptr;
         break;
+      }
       case llvm::Instruction::Load:{
         auto load = dyn_cast<llvm::LoadInst>(it);
+        if(dyn_cast<Constant>(load->getPointerOperand()))
+            last = load->getPointerOperand(); 
 	if((load->getPointerOperand() - v) == 0)
 	    v = dyn_cast<Value>(it);
-        if(!flag and !inttoptrflag and dyn_cast<Constant>(load->getPointerOperand())){
-            StringRef name = load->getPointerOperand()->getName();
-            auto number = StrToInt(name.data());
-            auto reg = REGLABLE(number);
-            if(reg!=UndefineOP){
-	      if(isExecutableAddress(ptc.regs[reg]))
-		  return false;
-	    }
-	}
         break;
       }
       case llvm::Instruction::Store:{
         auto store = dyn_cast<llvm::StoreInst>(it);
         if((store->getValueOperand() - v) == 0){
 	    v = store->getPointerOperand();
-            if(flag){
-              if(dyn_cast<Constant>(v))
-                return true;
+            if(flag or inttoptrflag){
+              if(dyn_cast<Constant>(v)){
+                if(((v-last)==0) and !inttoptrflag)
+                  return {true,true}; 
+                return {false,true};
+              }
             }
         }
 	break;
@@ -3188,8 +3210,8 @@ bool JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
       case llvm::Instruction::IntToPtr:{
         auto inttoptrI = dyn_cast<Instruction>(it);
   	if((inttoptrI->getOperand(0) - v) == 0){
-  	    inttoptrflag = true;
             v = dyn_cast<Value>(inttoptrI);
+            inttoptrflag = true;
         }
   	break;
       }
@@ -3205,7 +3227,7 @@ bool JumpTargetManager::haveBinaryOperation(llvm::Instruction *I){
       }  
     }
   }//??end for
-  return false;
+  return {false, false};
 }
 
 void JumpTargetManager::haveGlobalDatainRegs(std::map<uint32_t, uint64_t> &GloData){
@@ -3495,60 +3517,6 @@ bool JumpTargetManager::getStaticAddrfromDestRegs1(llvm::Instruction *I,uint64_t
             v = dyn_cast<Value>(inttoptrI);
         }
   	break;
-      }
-      default:{
-        auto instr = dyn_cast<Instruction>(it);
-        for(Use &u : instr->operands()){
-            Value *InstV = u.get();
-            if((InstV - v) == 0){
-	      v = dyn_cast<Value>(instr);
-              break; 
-            }
-        }
-      }  
-    }
-  }//??end for
-  return false;
-}
-
-
-bool JumpTargetManager::getStaticAddrfromDestRegs(llvm::Instruction *I){
-  BasicBlock::iterator it(I);
-  BasicBlock::iterator end = I->getParent()->end();
-  BasicBlock::iterator lastInst(I->getParent()->back());
-
-  auto v = dyn_cast<llvm::Value>(I);
-  if(I->getOpcode()==Instruction::Store){
-    auto store = dyn_cast<llvm::StoreInst>(I);
-    v = store->getPointerOperand();
-  }
-
-  it++;
-  for(; it!=end; it++){ 
-    switch(it->getOpcode()){
-      case llvm::Instruction::Call:
-        break;
-      case llvm::Instruction::Load:{
-        auto load = dyn_cast<llvm::LoadInst>(it);
-	if((load->getPointerOperand() - v) == 0)
-	    v = dyn_cast<Value>(it);
-        break;
-      }
-      case llvm::Instruction::Store:{
-        auto store = dyn_cast<llvm::StoreInst>(it);
-        if((store->getValueOperand() - v) == 0){
-	    v = store->getPointerOperand();
-            if(dyn_cast<Constant>(v)){
-              StringRef name = v->getName();
-              auto number = StrToInt(name.data());
-              auto op = REGLABLE(number);
-              if(op==UndefineOP)
-                  continue;
-              if(isExecutableAddress(ptc.regs[op]))
-                return true;
-            }
-        }
-	break;
       }
       default:{
         auto instr = dyn_cast<Instruction>(it);
