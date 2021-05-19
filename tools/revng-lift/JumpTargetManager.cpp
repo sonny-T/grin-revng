@@ -2425,6 +2425,7 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,llvm::Instru
   std::vector<uint64_t> tmpGlobal;
   std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
+  tmpGlobal1.push_back(assign_gadge[*rit].first);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2435,7 +2436,8 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,llvm::Instru
     auto global_I = assign_gadge[*rit].second.global_I;
     auto op = assign_gadge[*rit].second.op;
     auto indirect = assign_gadge[*rit].second.indirect;
-    runGlobalGadget(assign_gadge[*rit].first,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[*rit].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
   if(assign_gadge[pos].second.operation_block){
     auto gadget = assign_gadge[pos].second.static_addr_block;
@@ -2443,7 +2445,8 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,llvm::Instru
     auto global_I = tmpI;
     auto op = tmpOP;
     auto indirect = assign_gadge[pos].second.indirect;
-    runGlobalGadget(assign_gadge[pos].first,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[pos].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2463,8 +2466,7 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,uint64_t res
   std::vector<uint64_t> tmpGlobal;
   std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  auto back = assign_gadge[GadgeChain.back()].second.global_addr;
-  assign_gadge[GadgeChain.back()].second.global_addr = reserve;
+  tmpGlobal1.push_back(reserve);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2475,16 +2477,17 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,uint64_t res
     auto global_I = assign_gadge[*rit].second.global_I;
     auto op = assign_gadge[*rit].second.op;
     auto indirect = assign_gadge[*rit].second.indirect;
-    runGlobalGadget(assign_gadge[*rit].second.global_addr,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[*rit].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
-  assign_gadge[GadgeChain.back()].second.global_addr = back;
   if(assign_gadge[pos].second.operation_block){
     auto gadget = assign_gadge[pos].second.static_addr_block;
     bool oper = false;
     auto global_I = tmpI;
     auto op = tmpOP;
     auto indirect = assign_gadge[pos].second.indirect;
-    runGlobalGadget(assign_gadge[pos].first,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[pos].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2504,6 +2507,7 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos){
   std::vector<uint64_t> tmpGlobal;
   std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
+  tmpGlobal1.push_back(assign_gadge[*rit].first);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2514,7 +2518,8 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos){
     auto global_I = assign_gadge[*rit].second.global_I;
     auto op = assign_gadge[*rit].second.op;
     auto indirect = assign_gadge[*rit].second.indirect;
-    runGlobalGadget(assign_gadge[*rit].first,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[*rit].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2534,8 +2539,7 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos, uint64_t re
   std::vector<uint64_t> tmpGlobal;
   std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  auto back = assign_gadge[GadgeChain.back()].second.global_addr;
-  assign_gadge[GadgeChain.back()].second.global_addr = reserve;
+  tmpGlobal1.push_back(reserve);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2546,9 +2550,9 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos, uint64_t re
     auto global_I = assign_gadge[*rit].second.global_I;
     auto op = assign_gadge[*rit].second.op;
     auto indirect = assign_gadge[*rit].second.indirect;
-    runGlobalGadget(assign_gadge[*rit].second.global_addr,gadget,oper,global_I,op,indirect,tmpGlobal1);
+    auto isloop = assign_gadge[*rit].second.isloop;
+    runGlobalGadget(gadget,oper,global_I,op,indirect,isloop,tmpGlobal1);
   }
-  assign_gadge[GadgeChain.back()].second.global_addr = back;
 
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2557,12 +2561,12 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos, uint64_t re
   BaseAddr.close();
 }
 
-void JumpTargetManager::runGlobalGadget(uint64_t basePC,
-                                        llvm::BasicBlock * gadget,
+void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
                                         bool oper,
                                         llvm::Instruction * global_I,
                                         uint32_t op,
                                         bool indirect,
+                                        bool isloop,
                                         std::vector<uint64_t> &tmpGlobal){
     if(gadget==nullptr or global_I==nullptr)
       return;
@@ -2574,14 +2578,14 @@ void JumpTargetManager::runGlobalGadget(uint64_t basePC,
     std::vector<uint64_t> &tempVec1 = tempVec;
 
     if(tmpGlobal.empty())
-      tmpGlobal.push_back(basePC);
+      return;
 
     uint32_t opt = UndefineOP;
     uint64_t virtualAddr = 0;
     uint32_t crash = 0;
     bool recover = false;
     if(current_pc != thisAddr){
-      std::tie(opt,virtualAddr) = getLastOperandandNextPC(&*(gadget->begin()));
+      std::tie(opt,virtualAddr) = getLastOperandandNextPC(&*(gadget->begin()),global_I);
       if(virtualAddr==0)
         return;
     }
@@ -2591,11 +2595,11 @@ void JumpTargetManager::runGlobalGadget(uint64_t basePC,
         virtualAddr = current_pc;
 	thisAddr = 0;
       }
-    } 
+    }
+    /* If the instruction to operate global data is entry address,
+     * we consider that no instruction operates offset, and offset value
+     * has been designated in global_I. */ 
     if(current_pc == thisAddr or opt==UndefineOP or opt==R_ESP){
-      /* If the instruction to operate global data is entry address,
-       * we consider that no instruction operates offset, and offset value
-       * has been designated in global_I. */
       if(ptc.is_stack_addr(ptc.regs[R_ESP])){
         ptc.storeStack();
         recover = true;
@@ -2604,7 +2608,7 @@ void JumpTargetManager::runGlobalGadget(uint64_t basePC,
       for(auto base : tmpGlobal){
         if(op!=UndefineOP)
           ptc.regs[op] = base;
-        ConstOffsetExec(gadget,thisAddr,current_pc,oper,global_I,op,indirect,crash,tempVec1);
+        ConstOffsetExec(gadget,thisAddr,current_pc,oper,global_I,op,indirect,isloop,crash,tempVec1);
         crash++;
       }
       tmpGlobal.clear();
@@ -2628,7 +2632,7 @@ void JumpTargetManager::runGlobalGadget(uint64_t basePC,
     for(auto base:tmpGlobal){
       if(op!=UndefineOP)
         ptc.regs[op] = base;
-      VarOffsetExec(gadget,thisAddr,virtualAddr,current_pc,oper,global_I,op,opt,indirect,crash,tempVec1);
+      VarOffsetExec(gadget,thisAddr,virtualAddr,current_pc,oper,global_I,op,opt,indirect,isloop,crash,tempVec1);
       crash++;
     }
     tmpGlobal.clear();
@@ -2645,6 +2649,7 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
                                         llvm::Instruction * global_I, 
                                         uint32_t op, 
                                         bool indirect,
+                                        bool isloop,
                                         uint32_t crash,
                                         std::vector<uint64_t>& tempVec){
   size_t pagesize = 0;        
@@ -2729,7 +2734,9 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
     }
     harvestBTBasicBlock(gadget,thisAddr,tmpPC);
    
-    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";     
+    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";    
+    if(!isloop) 
+      break;
   }
   BaseAddr.close();
 }
@@ -2743,6 +2750,7 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
                                       uint32_t op,
                                       uint32_t opt,
                                       bool indirect,
+                                      bool isloop,
                                       uint32_t crash,
                                       std::vector<uint64_t>& tempVec){
   size_t pagesize = 0;
@@ -2827,7 +2835,9 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
 
     harvestBTBasicBlock(gadget,thisAddr,tmpPC);
    
-    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n"; 
+    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";
+    if(!isloop)
+      break;      
   }
   BaseAddr.close();    
 }
@@ -2872,8 +2882,8 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
               //if thisBlock is indirect or StaticAddr is stored in registers. 
               if(*ptc.isIndirect or *ptc.isIndirectJmp or 
                   (getStaticAddrfromDestRegs1(&*I,0) and 
-                                 !isCase1(&*I,pc) and 
-                                 !isCase2(&*I)
+                                 !isCase1(&*I,pc)  
+                           //      and !isCase2(&*I)
                   ))
               {
                 assign_gadge[pos].second.static_addr_block = thisBlock;
@@ -3937,11 +3947,72 @@ uint32_t JumpTargetManager::REGLABLE(uint32_t RegOP){
   }
 }
 
-std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::Instruction *I){
+bool JumpTargetManager::isReachtoCurrent(llvm::StoreInst *store, llvm::Instruction *cur){
+  auto I = dyn_cast<Instruction>(store);
+  BasicBlock::iterator it(I);
+  BasicBlock::iterator end = I->getParent()->end();
+  BasicBlock::iterator lastInst(I->getParent()->back());
+
+  auto v = store->getPointerOperand();
+  auto addr = getInstructionPC(cur);
+
+  bool flag = false;
+  uint64_t pc = 0;
+  it++;
+  for(; it!=end; it++){ 
+    switch(it->getOpcode()){
+      case llvm::Instruction::Call:{
+        auto callI = dyn_cast<CallInst>(&*it);
+        auto *Callee = callI->getCalledFunction();
+        if(Callee != nullptr && Callee->getName() == "newpc"){
+          pc = getLimitedValue(callI->getArgOperand(0));
+          if(pc == addr)
+            flag = true;
+        }
+        break;
+      }
+      case llvm::Instruction::Load:{
+        auto load = dyn_cast<llvm::LoadInst>(it);
+	if((load->getPointerOperand() - v) == 0){
+            if(flag)
+              return true; 
+	    v = dyn_cast<Value>(it);
+        }
+        break;
+      }
+      case llvm::Instruction::Store:{
+        auto store = dyn_cast<llvm::StoreInst>(it);
+        if((store->getValueOperand() - v) == 0){
+            if(flag)
+              return true;
+	    v = store->getPointerOperand();
+        }
+	break;
+      }
+      default:{
+        auto instr = dyn_cast<Instruction>(it);
+        for(Use &u : instr->operands()){
+            Value *InstV = u.get();
+            if((InstV - v) == 0){
+              if(flag)
+                return true;
+	      v = dyn_cast<Value>(instr);
+              break; 
+            }
+        }
+      }
+      if(pc>addr)
+        break;  
+    }
+  }//??end for
+  return false;
+}
+std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::Instruction *I,llvm::Instruction *current){
   BasicBlock::iterator it(I);
   BasicBlock::iterator end = I->getParent()->end();
   uint32_t op = UndefineOP;
   uint64_t addr = 0;
+  auto cur_addr = getInstructionPC(current);
   it++;
   for(; it!=end; it++){
     //if(it->getOpcode() == Instruction::Load){
@@ -3952,6 +4023,10 @@ std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::In
       auto store = dyn_cast<StoreInst>(&*it);
       auto v = store->getPointerOperand();
       if(dyn_cast<Constant>(v)){
+        if(dyn_cast<ConstantInt>(v))
+          continue;
+        if(!isReachtoCurrent(store,current))
+          continue;
         StringRef name = v->getName();
         auto number = StrToInt(name.data());
         op = REGLABLE(number); 
@@ -3963,7 +4038,8 @@ std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::In
       auto *Callee = call->getCalledFunction();
       if(Callee != nullptr && Callee->getName() == "newpc"){
         addr = getLimitedValue(call->getArgOperand(0));
-        break;
+        if(addr==cur_addr or op!=UndefineOP)
+          break;
       }
     }
   }

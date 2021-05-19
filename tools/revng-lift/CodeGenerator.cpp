@@ -876,6 +876,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
   
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
+      JumpTargets.harvestStaticAddr(BlockBRs);
       if(!GloData.empty()){
         JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
         GloData.clear();
@@ -884,7 +885,6 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         JumpTargets.harvestBlockPCs(BlockPCs);
         BlockPCFlag = false; 
       }
-      JumpTargets.harvestStaticAddr(BlockBRs);
     }////?end if(!JumpTargets.haveBB)
 
     // Obtain a new program counter to translate

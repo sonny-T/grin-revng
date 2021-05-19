@@ -292,18 +292,19 @@ public:
   uint64_t getStaticAddrfromDestRegs(llvm::Instruction *I, uint64_t bound);
   bool getGlobalDatafromRegs(llvm::Instruction *I, int64_t pre);
   uint64_t getGlobalDatafromDestRegs(llvm::BasicBlock *thisBlock);
-  std::pair<uint32_t,uint64_t> getLastOperandandNextPC(llvm::Instruction *I);
+  std::pair<uint32_t,uint64_t> getLastOperandandNextPC(llvm::Instruction *I,llvm::Instruction*current);
+  bool isReachtoCurrent(llvm::StoreInst *store, llvm::Instruction *cur);
   uint32_t getOffsetReg(llvm::Instruction *I);
   void harvestCodePointerInDataSegment(int64_t pos);
   void harvestCodePointerInDataSegment(int64_t pos, llvm::Instruction *tmpI, uint32_t tmpOP);
   void harvestCodePointerInDataSegment(int64_t pos,uint64_t reserve,llvm::Instruction *tmpI, uint32_t tmpOP);
   void harvestCodePointerInDataSegment(int64_t pos, uint64_t reserve);
-  void runGlobalGadget(uint64_t basePC, 
-                       llvm::BasicBlock * gadget,
+  void runGlobalGadget(llvm::BasicBlock * gadget,
                        bool oper,
                        llvm::Instruction * global_I,
                        uint32_t op,
                        bool indirect,
+                       bool isloop,
                        std::vector<uint64_t> &tmpGlobal);
   void ConstOffsetExec(llvm::BasicBlock *gadget,
                        uint64_t thisAddr,
@@ -312,6 +313,7 @@ public:
                        llvm::Instruction * global_I,
                        uint32_t op,
                        bool indirect,
+                       bool isloop,
                        uint32_t crash,
                        std::vector<uint64_t>& tempVec);
   void VarOffsetExec(llvm::BasicBlock *gadget,
@@ -323,6 +325,7 @@ public:
                      uint32_t op,
                      uint32_t opt,
                      bool indirect,
+                     bool isloop,
                      uint32_t crash,
                      std::vector<uint64_t>& tempVec);
   bool isGOT(uint64_t pc);
