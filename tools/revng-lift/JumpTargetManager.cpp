@@ -3986,6 +3986,14 @@ bool JumpTargetManager::isReachtoCurrent(llvm::StoreInst *store, llvm::Instructi
             if(flag)
               return true;
 	    v = store->getPointerOperand();
+            if(dyn_cast<Constant>(v)){
+              StringRef name = v->getName();
+	      auto number = StrToInt(name.data());
+	      auto op = REGLABLE(number);
+              //Exclude the influence of instructions' flag
+              if(op==UndefineOP)
+                return true;
+            }
         }
 	break;
       }
