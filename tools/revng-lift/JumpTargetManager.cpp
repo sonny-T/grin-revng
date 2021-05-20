@@ -2713,6 +2713,8 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
         break;
       if(!haveDef2OP(global_I,op))
         break;
+      if(!isloop)
+        break;
       continue;
     }
     // Static addresses stored in registers.
@@ -2812,6 +2814,8 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
       }
       pagesize++;
       if(pagesize>LoopNums)
+        break;
+      if(!isloop)
         break;
       continue;
     }
@@ -2970,7 +2974,7 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
             if(*ptc.isIndirect or *ptc.isIndirectJmp)
               assign_gadge[i].second.indirect = true;  
             harvestCodePointerInDataSegment(i);
-            break;
+            continue;
           }
           auto result = getGlobalDatafromRegs(&*it,i);
           if(result){
@@ -2981,7 +2985,7 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
               }
               assign_gadge[i].second.end = false;
               AllGadget[thisBlock] = 1;
-              break;
+              continue;
           }
 
           //Restore original assign_gadge info
@@ -3188,10 +3192,8 @@ std::pair<bool,bool> JumpTargetManager::haveBinaryOperation(llvm::Instruction *I
       case llvm::Instruction::Call:{
         auto callI = dyn_cast<CallInst>(&*it);
         auto *Callee = callI->getCalledFunction();
-        if(Callee != nullptr && Callee->getName() == "newpc"){
-          if(flag or inttoptrflag)
+        if(Callee != nullptr && Callee->getName() == "newpc")
             return {false,false};
-        }
         last = nullptr;
         break;
       }
