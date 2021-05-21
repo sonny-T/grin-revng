@@ -2974,7 +2974,7 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
             if(*ptc.isIndirect or *ptc.isIndirectJmp)
               assign_gadge[i].second.indirect = true;  
             harvestCodePointerInDataSegment(i);
-            continue;
+            break;
           }
           auto result = getGlobalDatafromRegs(&*it,i);
           if(result){
@@ -2985,7 +2985,7 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
               }
               assign_gadge[i].second.end = false;
               AllGadget[thisBlock] = 1;
-              continue;
+              break;
           }
 
           //Restore original assign_gadge info
