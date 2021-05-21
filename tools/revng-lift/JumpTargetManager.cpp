@@ -3193,7 +3193,10 @@ std::pair<bool,bool> JumpTargetManager::haveBinaryOperation(llvm::Instruction *I
         auto callI = dyn_cast<CallInst>(&*it);
         auto *Callee = callI->getCalledFunction();
         if(Callee != nullptr && Callee->getName() == "newpc")
+          if(flag or inttoptrflag)
             return {false,false};
+        flag = false;
+        inttoptrflag = false;
         last = nullptr;
         break;
       }
