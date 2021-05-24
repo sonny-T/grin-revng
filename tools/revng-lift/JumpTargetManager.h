@@ -184,6 +184,11 @@ public:
 
   void clearRegs();
   void harvestCallBasicBlock(llvm::BasicBlock *thisBlock, uint64_t thisAddr);
+  void recordFunArgs(uint64_t entry);
+  std::map<uint64_t,std::vector<uint64_t>> FuncArgs;
+  void recoverArgs(uint64_t entry);
+  std::map<uint64_t,uint64_t> RecoverArgs;
+
   void harvestBTBasicBlock(llvm::BasicBlock *thisBlock, uint64_t thisAddr, uint64_t destAddr);
 
   enum LastAssignmentResult{

@@ -872,14 +872,16 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
   
       if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect or *ptc.isRet)
         JumpTargets.harvestNextAddrofBr();
-      if(*ptc.isCall)
-        JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
   
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
       JumpTargets.harvestStaticAddr(BlockBRs);
       if(!GloData.empty()){
         JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
         GloData.clear();
+      }
+      if(*ptc.isCall){
+        JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
+        JumpTargets.recordFunArgs(DynamicVirtualAddress);
       }
       if(BlockPCFlag){
         JumpTargets.harvestBlockPCs(BlockPCs);
@@ -973,6 +975,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     if(Entry==nullptr){
       BlockPCFlag = JumpTargets.handleStaticAddr();
       std::tie(VirtualAddress, Entry) = JumpTargets.peek();
+      JumpTargets.recoverArgs(VirtualAddress);
       std::cerr<<std::hex<<VirtualAddress<<" \n";
     }
 

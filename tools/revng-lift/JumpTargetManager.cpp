@@ -5195,6 +5195,52 @@ void JumpTargetManager::clearRegs(){
   ptc.regs[R_15] = 0;
 }
 
+void JumpTargetManager::recordFunArgs(uint64_t entry){
+  if(!isExecutableAddress(entry))
+    return;
+
+  std::vector<uint64_t> args; 
+  //rdi,rsi,rdx,rcx,r8,r9
+  args.push_back(ptc.regs[R_EDI]);
+  args.push_back(ptc.regs[R_ESI]);
+  args.push_back(ptc.regs[R_EDX]);  
+  args.push_back(ptc.regs[R_ECX]);
+  args.push_back(ptc.regs[R_8]);
+  args.push_back(ptc.regs[R_9]);
+
+  std::map<uint64_t,std::vector<uint64_t>>::iterator Target = FuncArgs.find(entry);
+  if(Target == FuncArgs.end())
+    FuncArgs[entry] = args;
+
+  BlockMap::iterator TargetIt = JumpTargets.find(entry);
+  if (TargetIt != JumpTargets.end()) {
+    for(size_t i=0; i<args.size(); i++){
+      if(isExecutableAddress(args[i])){
+        auto p = FuncArgs.find(entry);
+        if(isExecutableAddress(p->second[i])){
+          StaticAddrsMap::iterator it = StaticAddrs.find(args[i]); 
+          if(it != StaticAddrs.end()){
+            RecoverArgs[args[i]] = p->second[i];
+          }
+        }
+      }
+    }
+  }
+}
+
+void JumpTargetManager::recoverArgs(uint64_t entry){
+  std::map<uint64_t,uint64_t>::iterator Target = RecoverArgs.find(entry);
+  if(Target!=RecoverArgs.end()){
+    auto p = FuncArgs.find(Target->second);
+    ptc.regs[R_EDI] = p->second[0];
+    ptc.regs[R_ESI] = p->second[1]; 
+    ptc.regs[R_EDX] = p->second[2];
+    ptc.regs[R_ECX] = p->second[3];
+    ptc.regs[R_8] = p->second[4];
+    ptc.regs[R_9] = p->second[5];
+  }
+}
+
 void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64_t thisAddr){
   if(!isDataSegmAddr(ptc.regs[R_ESP]))
     ptc.regs[R_ESP] = *ptc.ElfStartStack - 512;   
