@@ -61,4 +61,6 @@ extern PTCInterface ptc;
 #define R_15 15
 #define UndefineOP 20
 
+#define MAXNUMS 29000
+
 #endif // PTCINTERFACE_H

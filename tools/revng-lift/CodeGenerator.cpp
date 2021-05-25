@@ -914,7 +914,9 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       *ptc.exception_syscall = -1;
     }
     JumpTargets.generateCFG(tmpVA,DynamicVirtualAddress,BlockBRs);
- 
+
+    if(JumpTargets.BranchTargets.size()>MAXNUMS) 
+      traverseFLAG = 1;
     if(!traverseFLAG){
       JumpTargets.handleLibCalling(DynamicVirtualAddress);
       if(DynamicVirtualAddress){
