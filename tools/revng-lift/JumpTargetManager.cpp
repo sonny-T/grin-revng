@@ -2952,7 +2952,7 @@ void JumpTargetManager::handleGlobalDataGadget(llvm::BasicBlock *thisBlock,std::
 	    i = assign_gadge.size()-1;
 	  }
 
-          //Preserve this assign_gadge information
+          //Preserve this null assign_gadge information
           uint32_t tmpOP = UndefineOP;
           auto tmpBB = assign_gadge[i].second.operation_block;
           auto tmpI = assign_gadge[i].second.global_I;
@@ -3125,7 +3125,8 @@ int64_t JumpTargetManager::isRecordGadgetBlock(uint64_t base){
   
   for(unsigned i=0; i<assign_gadge.size(); i++){
     if(assign_gadge[i].first==base){
-      if(assign_gadge[i].second.operation_block==nullptr)
+      if(assign_gadge[i].second.operation_block   == nullptr and 
+         assign_gadge[i].second.static_addr_block == nullptr)
         return i;
     }
   }
