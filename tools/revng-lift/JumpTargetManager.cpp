@@ -2336,10 +2336,11 @@ int64_t JumpTargetManager::GetConst(llvm::Instruction *I, llvm::Value *v){
             auto str = v1->getName();
             JTAddr << str.str();
             auto lable = REGLABLE(StrToInt(str.data()));
-            if(lable == UndefineOP)
-              revng_abort("Unkown register OP!\n");
             JTAddr << " : "<< std::hex<< ptc.regs[lable]<<"\n";
             JTAddr.close();
+            if(lable == UndefineOP)
+              return 0;
+              //revng_abort("Unkown register OP!\n");
             return ptc.regs[lable];
           }
         }
