@@ -1257,6 +1257,16 @@ void JumpTargetManager::purgeTranslation(BasicBlock *Start) {
   }
 }
 
+void JumpTargetManager::purgeIllegalTranslation(llvm::BasicBlock *thisBlock){
+  while((--(--thisBlock->end())) != thisBlock->begin())
+    eraseInstruction(&*(--(--thisBlock->end())));
+  if(dyn_cast<BranchInst>(--thisBlock->end())){
+    eraseInstruction(&*(--thisBlock->end()));
+    CallInst::Create(TheModule.getFunction("abort"), {}, thisBlock);
+    new UnreachableInst(Context, thisBlock);
+  }
+}
+
 BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC, JTReason::Values Reason){
  
   BlockMap::iterator TargetIt = JumpTargets.find(PC);

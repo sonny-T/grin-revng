@@ -869,7 +869,8 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
              Delimiter,Blocks,Builder,
              VirtualAddress,ConsumedSize,BlockPCs,Context,
   	     OriginalInstrMDKind,PTCInstrMDKind);  
-  
+      if(*ptc.isIllegal)
+        JumpTargets.purgeIllegalTranslation(BlockBRs); 
       if(*ptc.isDirectJmp or *ptc.isIndirectJmp or *ptc.isIndirect or *ptc.isRet)
         JumpTargets.harvestNextAddrofBr();
   
@@ -1289,6 +1290,8 @@ static void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator
       MDNode *MDPTCInstr = MDNode::getDistinct(Context, MDPTCString);
 
       // Set metadata for all the new instructions
+      if(*ptc.isIllegal)
+        continue;
       for (BasicBlock *Block : Blocks) {
         BasicBlock::iterator I = Block->end();
         while (I != Block->begin() && !(--I)->hasMetadata()) {

@@ -253,6 +253,8 @@ public:
   void CallNextToStaticAddr(uint32_t PC);
   StaticAddrsMap JumpTableBase;
 
+  void purgeIllegalTranslation(llvm::BasicBlock *thisBlock);
+  
   std::vector<uint64_t> IllegalStaticAddrs;
   bool isIllegalStaticAddr(uint64_t pc);
 
@@ -866,7 +868,7 @@ private:
 
   /// \brief Erase \p I, and deregister it in case it's a call to `newpc`
   void eraseInstruction(llvm::Instruction *I) {
-    revng_assert(I->use_empty());
+    //revng_assert(I->use_empty());
 
     uint64_t PC = getPCFromNewPCCall(I);
     if (PC != 0)
