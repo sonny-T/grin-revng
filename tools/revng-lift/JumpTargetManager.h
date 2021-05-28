@@ -320,7 +320,8 @@ public:
                        bool indirect,
                        bool isloop,
                        uint32_t crash,
-                       std::vector<uint64_t>& tempVec);
+                       std::vector<uint64_t>& tempVec,
+                       std::set<uint64_t>& JTtargets);
   void VarOffsetExec(llvm::BasicBlock *gadget,
                      uint64_t thisAddr,
                      uint64_t virtualAddr,
@@ -332,7 +333,8 @@ public:
                      bool indirect,
                      bool isloop,
                      uint32_t crash,
-                     std::vector<uint64_t>& tempVec);
+                     std::vector<uint64_t>& tempVec,
+                     std::set<uint64_t>& JTtargets);
   bool isGOT(uint64_t pc);
   bool isROData(uint64_t pc);
   bool isGlobalData(uint64_t pc);
