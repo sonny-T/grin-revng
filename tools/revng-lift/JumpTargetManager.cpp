@@ -1265,6 +1265,7 @@ void JumpTargetManager::purgeIllegalTranslation(llvm::BasicBlock *thisBlock){
     CallInst::Create(TheModule.getFunction("abort"), {}, thisBlock);
     new UnreachableInst(Context, thisBlock);
   }
+  eraseInstruction(&*(thisBlock->begin()));
 }
 
 BasicBlock * JumpTargetManager::obtainJTBB(uint64_t PC, JTReason::Values Reason){

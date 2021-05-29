@@ -3220,6 +3220,7 @@ ptc	tools/revng-lift/Main.cpp	/^PTCInterface ptc = {}; \/\/\/< The interface wit
 purge	tools/revng-lift/JumpTargetManager.cpp	/^static void purge(BasicBlock *BB) {$/;"	f	file:
 purgeBranch	include/revng/Support/IRHelpers.h	/^inline void purgeBranch(llvm::BasicBlock::iterator I) {$/;"	f
 purgeDeadBlocks	tools/revng-lift/CodeGenerator.cpp	/^static void purgeDeadBlocks(Function *F) {$/;"	f	file:
+purgeIllegalTranslation	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::purgeIllegalTranslation(llvm::BasicBlock *thisBlock){$/;"	f	class:JumpTargetManager
 purgeNoReturn	tools/revng-lift/CodeGenerator.cpp	/^static void purgeNoReturn(Function *F) {$/;"	f	file:
 purgeTranslation	tools/revng-lift/JumpTargetManager.cpp	/^void JumpTargetManager::purgeTranslation(BasicBlock *Start) {$/;"	f	class:JumpTargetManager
 push	include/revng/Support/Statistics.h	/^  void push(K Key) { Map[Key]++; }$/;"	f	class:CounterMap

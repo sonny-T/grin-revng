@@ -1290,8 +1290,6 @@ static void IRtoIR(PTCInstructionListPtr &InstructionList, InstructionTranslator
       MDNode *MDPTCInstr = MDNode::getDistinct(Context, MDPTCString);
 
       // Set metadata for all the new instructions
-      if(*ptc.isIllegal)
-        continue;
       for (BasicBlock *Block : Blocks) {
         BasicBlock::iterator I = Block->end();
         while (I != Block->begin() && !(--I)->hasMetadata()) {
