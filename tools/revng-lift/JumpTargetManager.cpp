@@ -5229,7 +5229,27 @@ void JumpTargetManager::clearRegs(){
   ptc.regs[R_15] = 0;
 }
 
-void JumpTargetManager::recordFunArgs(uint64_t entry){
+bool JumpTargetManager::haveFuncPointer(uint64_t fp, llvm::BasicBlock *thisBlock){
+  llvm::BasicBlock::iterator it = thisBlock->begin();
+  for(;it!=thisBlock->end();it++){
+    if(it->getOpcode() == Instruction::Store){
+      auto store = dyn_cast<llvm::StoreInst>(&*it);
+      auto v = store->getPointerOperand();
+      if(dyn_cast<Constant>(v)){
+        StringRef name = v->getName();
+        auto number = StrToInt(name.data());
+        auto reg = REGLABLE(number);
+        if(reg==R_EDI or reg==R_ESI or reg==R_EDX or reg==R_ECX or reg==R_8 or reg==R_9){
+          if(fp==ptc.regs[reg])
+            return true;
+        }
+      } 
+    }
+  }
+  return false;
+}
+
+void JumpTargetManager::recordFunArgs(uint64_t entry,llvm::BasicBlock *thisBlock){
   if(!isExecutableAddress(entry))
     return;
 
@@ -5251,11 +5271,16 @@ void JumpTargetManager::recordFunArgs(uint64_t entry){
     for(size_t i=0; i<args.size(); i++){
       if(isExecutableAddress(args[i])){
         auto p = FuncArgs.find(entry);
-        if(isExecutableAddress(p->second[i])){
-          StaticAddrsMap::iterator it = StaticAddrs.find(args[i]); 
-          if(it != StaticAddrs.end()){
-            RecoverArgs[args[i]] = p->second[i];
-          }
+        StaticAddrsMap::iterator it = StaticAddrs.find(args[i]);
+        if(it != StaticAddrs.end()){
+          /* case1: old callback pointer env assign to this callback pointer, 
+           *        when this function pointer is called  */
+          if(isExecutableAddress(p->second[i]))
+              RecoverArgs[args[i]] = p->second[i];
+          /* if callback pointer is null,
+           * continue to execute for getting env */
+          if(p->second[i]==0 and haveFuncPointer(args[i],thisBlock))
+              RecoverEnv[args[i]] = {entry, args};
         }
       }
     }
@@ -5272,7 +5297,75 @@ void JumpTargetManager::recoverArgs(uint64_t entry){
     ptc.regs[R_ECX] = p->second[3];
     ptc.regs[R_8] = p->second[4];
     ptc.regs[R_9] = p->second[5];
+    return;
   }
+
+  auto it = RecoverEnv.find(entry);
+  if(it!=RecoverEnv.end())
+    getArgsEnv(entry);
+}
+
+void JumpTargetManager::getArgsEnv(uint64_t entry){
+  auto it = RecoverEnv.find(entry);
+  
+  //set regs env
+  ptc.regs[R_EDI] = it->second.second[0];
+  ptc.regs[R_ESI] = it->second.second[1];
+  ptc.regs[R_EDX] = it->second.second[2];
+  ptc.regs[R_ECX] = it->second.second[3];  
+  ptc.regs[R_8] = it->second.second[4];
+  ptc.regs[R_9] = it->second.second[5];
+
+  //Run it
+  std::map<uint64_t,std::vector<uint64_t>> branch;
+  std::set<uint64_t> Executed;
+  uint64_t nextPC = it->second.first;
+  while(nextPC != entry){
+    Executed.insert(nextPC);
+    auto pc = ptc.exec(nextPC); 
+    
+    if((uint64_t)pc==entry)
+      return;
+    if(*ptc.isCall){
+      if(ptc.regs[R_EDI] != entry and 
+         ptc.regs[R_ESI] != entry and
+         ptc.regs[R_EDX] != entry and
+         ptc.regs[R_ECX] != entry and
+         ptc.regs[R_8] != entry and
+         ptc.regs[R_9] != entry)
+          pc = *ptc.isCall;  
+    }
+    if(pc==-1){
+      auto BB = obtainJTBB(nextPC);
+      if(BB==nullptr) pc=0;
+      pc = handleIllegalMemoryAccess(BB,nextPC,*ptc.BlockSize);
+    }
+
+    std::map<uint64_t, std::set<uint64_t>>::iterator br = CondBranches.find(nextPC);
+    if(br != CondBranches.end()){
+      for(auto p : br->second){
+        if((uint64_t)pc != p){
+          storeCPURegister();
+          branch[(uint64_t)pc] = TempCPURegister;
+        }
+      }
+    } 
+
+    std::set<uint64_t>::iterator ExecutedIt = Executed.find(pc);
+    if(ExecutedIt!=Executed.end() or !isExecutableAddress(pc) ){
+      if(branch.empty()) 
+          return;
+      auto begin = branch.begin();
+      pc = begin->first;
+      TempCPURegister = begin->second;
+      recoverCPURegister(); 
+      branch.erase(begin);
+    }
+    
+    nextPC = pc;
+  }
+  errs()<<"testtest\n";
+  
 }
 
 void JumpTargetManager::harvestCallBasicBlock(llvm::BasicBlock *thisBlock,uint64_t thisAddr){
@@ -5318,7 +5411,7 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
        llvm::BasicBlock *thisBlock, 
        uint32_t size, 
        std::map<std::string, llvm::BasicBlock *> &branchlabeledBasicBlock){
-  std::map<uint64_t, llvm::BasicBlock *> branchJT;
+  std::set<uint64_t> branchJT;
 
   // case 1: New block is belong to part of original block, so to split
   //         original block and occure a unconditional branch.
@@ -5338,9 +5431,8 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
       revng_assert(size==branchlabeledBasicBlock.size(),
                    "This br block should have many labels!");
       for(auto pair : branchlabeledBasicBlock){
-        if(getDestBRPCWrite(pair.second)){
-          branchJT[getDestBRPCWrite(pair.second)] = pair.second;
-        }   
+        if(getDestBRPCWrite(pair.second))
+            branchJT.insert(getDestBRPCWrite(pair.second)); 
       } 
     }
   }
@@ -5350,15 +5442,15 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
     //If there have one jump target, return it. 
     if(branchJT.size() < 2)
       return;
-    if(Statistics){
-      IndirectBlocksMap::iterator it = CondBranches.find(thisAddr);
-      if(it == CondBranches.end())
-	  CondBranches[thisAddr] = 1;
-    }
+
+    auto it = CondBranches.find(thisAddr);
+    if(it == CondBranches.end())
+        CondBranches[thisAddr] = branchJT;
+  
     for (auto destAddrSrcBB : branchJT){
-      if(!haveTranslatedPC(destAddrSrcBB.first, nextAddr)){
+      if(!haveTranslatedPC(destAddrSrcBB, nextAddr)){
 	bool isRecord = false;
-        std::set<uint64_t>::iterator Target = BranchAddrs.find(destAddrSrcBB.first);
+        std::set<uint64_t>::iterator Target = BranchAddrs.find(destAddrSrcBB);
         if(Target != BranchAddrs.end())
           isRecord = true;
 	  
@@ -5379,16 +5471,16 @@ void JumpTargetManager::harvestbranchBasicBlock(uint64_t nextAddr,
           /* Recording not execute branch destination relationship 
 	   * with current BasicBlock and address */ 
           BranchTargets.push_back(std::make_tuple(
-				destAddrSrcBB.first,
+				destAddrSrcBB,
 				//destAddrSrcBB.second,
 				thisBlock,
 				thisAddr
 				));
-          BranchAddrs.insert(destAddrSrcBB.first);
-          errs()<<format_hex(destAddrSrcBB.first,0)<<" <- Jmp target add\n";
+          BranchAddrs.insert(destAddrSrcBB);
+          errs()<<format_hex(destAddrSrcBB,0)<<" <- Jmp target add\n";
         }  
       }
-      generateCFG(thisAddr,destAddrSrcBB.first, thisBlock); 
+      generateCFG(thisAddr,destAddrSrcBB, thisBlock); 
     }
     errs()<<"Branch targets total numbers: "<<BranchTargets.size()<<" \n"; 
   }

@@ -184,10 +184,14 @@ public:
 
   void clearRegs();
   void harvestCallBasicBlock(llvm::BasicBlock *thisBlock, uint64_t thisAddr);
-  void recordFunArgs(uint64_t entry);
+  void recordFunArgs(uint64_t entry,llvm::BasicBlock *thisBlock);
+  bool haveFuncPointer(uint64_t fp, llvm::BasicBlock *thisBlock);
+
   std::map<uint64_t,std::vector<uint64_t>> FuncArgs;
   void recoverArgs(uint64_t entry);
+  void getArgsEnv(uint64_t entry);
   std::map<uint64_t,uint64_t> RecoverArgs;
+  std::map<uint64_t,std::pair<uint64_t,std::vector<uint64_t>>> RecoverEnv;
 
   void harvestBTBasicBlock(llvm::BasicBlock *thisBlock, uint64_t thisAddr, uint64_t destAddr);
 
@@ -226,7 +230,7 @@ public:
   IndirectBlocksMap JmpTable;
   IndirectBlocksMap RetBlocks;
   IndirectBlocksMap CallBranches;
-  IndirectBlocksMap CondBranches;
+  std::map<uint64_t, std::set<uint64_t>> CondBranches;
   void harvestNextAddrofBr();
   void StatisticsLog(void);
 

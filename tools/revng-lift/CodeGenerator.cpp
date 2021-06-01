@@ -882,7 +882,7 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
       }
       if(*ptc.isCall){
         JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
-        JumpTargets.recordFunArgs(DynamicVirtualAddress);
+        JumpTargets.recordFunArgs(DynamicVirtualAddress,BlockBRs);
       }
       if(BlockPCFlag){
         JumpTargets.harvestBlockPCs(BlockPCs);
