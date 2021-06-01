@@ -5317,6 +5317,7 @@ void JumpTargetManager::getArgsEnv(uint64_t entry){
   ptc.regs[R_9] = it->second.second[5];
 
   //Run it
+  errs()<<"run in loop...\n";
   std::map<uint64_t,std::vector<uint64_t>> branch;
   std::set<uint64_t> Executed;
   uint64_t nextPC = it->second.first;
@@ -5364,7 +5365,6 @@ void JumpTargetManager::getArgsEnv(uint64_t entry){
     
     nextPC = pc;
   }
-  errs()<<"testtest\n";
   
 }
 
