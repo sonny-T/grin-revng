@@ -1170,8 +1170,8 @@ JumpTargetManager::BlockWithAddress JumpTargetManager::peek() {
   harvest();
 
   // Purge all the partial translations we know might be wrong
-  for (BasicBlock *BB : ToPurge)
-    purgeTranslation(BB);
+  //for (BasicBlock *BB : ToPurge)
+  //  purgeTranslation(BB);
   ToPurge.clear();
 
   if (Unexplored.empty())
