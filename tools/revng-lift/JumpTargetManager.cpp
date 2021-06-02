@@ -4102,10 +4102,10 @@ std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::In
 uint32_t JumpTargetManager::getOffsetReg(llvm::Instruction *I){
   BasicBlock::reverse_iterator it(I);
   BasicBlock::reverse_iterator rend = I->getParent()->rend();
-  bool flag = false;
+  //bool flag = false;
   for(; it!=rend; it++){
-    if(it->getOpcode() == Instruction::Shl)
-      flag = true;
+    //if(it->getOpcode() == Instruction::Shl)
+    //  flag = true;
     if(it->getOpcode() == Instruction::Load){
       auto load = dyn_cast<LoadInst>(&*it);
       auto v = load->getPointerOperand();
@@ -4113,7 +4113,7 @@ uint32_t JumpTargetManager::getOffsetReg(llvm::Instruction *I){
         StringRef name = v->getName();
 	auto number = StrToInt(name.data());
 	auto op = REGLABLE(number);
-	if(flag and op!=UndefineOP)
+	if(op!=UndefineOP)
 	  return op;
       }
     }
