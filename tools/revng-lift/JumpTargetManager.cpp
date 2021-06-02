@@ -3202,10 +3202,15 @@ std::pair<bool,bool> JumpTargetManager::haveBinaryOperation(llvm::Instruction *I
     auto store = dyn_cast<llvm::StoreInst>(I);
     v = store->getPointerOperand();
   }
-
+  
   bool flag = false;
   bool inttoptrflag = false;
   llvm::Value *last = nullptr;
+  if(I->getOpcode()==Instruction::Load){
+    auto load = dyn_cast<llvm::LoadInst>(I);
+    if(dyn_cast<Constant>(load->getPointerOperand()))
+      last = load->getPointerOperand();
+  }
   it++;
   for(; it!=end; it++){ 
     switch(it->getOpcode()){

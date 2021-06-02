@@ -875,11 +875,11 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         JumpTargets.harvestNextAddrofBr();
   
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
-      JumpTargets.harvestStaticAddr(BlockBRs);
       if(!GloData.empty()){
         JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
         GloData.clear();
       }
+      JumpTargets.harvestStaticAddr(BlockBRs);
       if(*ptc.isCall){
         JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
         JumpTargets.recordFunArgs(DynamicVirtualAddress,BlockBRs);
