@@ -2719,8 +2719,6 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
       pagesize++;
       if(pagesize>LoopNums)
         break;
-      if(!haveDef2OP(global_I,op))
-        break;
       if(!isloop)
         break;
       continue;
@@ -2729,7 +2727,7 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
     if(!indirect)
       tmpPC = getStaticAddrfromDestRegs(global_I,current_pc);
     pagesize++;
-    if(!haveDef2OP(global_I,op) or pagesize>LoopNums)
+    if(pagesize>LoopNums)
       break;
     if(!isExecutableAddress(tmpPC))
       break;    
