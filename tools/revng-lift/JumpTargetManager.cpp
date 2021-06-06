@@ -1170,8 +1170,8 @@ JumpTargetManager::BlockWithAddress JumpTargetManager::peek() {
   harvest();
 
   // Purge all the partial translations we know might be wrong
-  //for (BasicBlock *BB : ToPurge)
-  //  purgeTranslation(BB);
+  for (BasicBlock *BB : ToPurge)
+    purgeTranslation(BB);
   ToPurge.clear();
 
   if (Unexplored.empty())
@@ -1248,7 +1248,7 @@ void JumpTargetManager::purgeTranslation(BasicBlock *Start) {
     // TODO: why this?
     while (pred_begin(BB) != pred_end(BB)) {
       BasicBlock *Predecessor = *pred_begin(BB);
-      revng_assert(pred_empty(Predecessor));
+      //revng_assert(pred_empty(Predecessor));
       Predecessor->eraseFromParent();
     }
 
