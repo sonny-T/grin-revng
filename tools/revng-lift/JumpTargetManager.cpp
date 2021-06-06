@@ -2440,10 +2440,10 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,llvm::Instru
     pos_base = assign_gadge[pos_base].second.pre;
     GadgeChain.push_back(pos_base);
   }
-  std::vector<uint64_t> tmpGlobal;
-  std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
+  std::set<uint64_t> tmpGlobal;
+  std::set<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  tmpGlobal1.push_back(assign_gadge[*rit].first);
+  tmpGlobal1.insert(assign_gadge[*rit].first);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2481,10 +2481,10 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos,uint64_t res
     pos_base = assign_gadge[pos_base].second.pre;
     GadgeChain.push_back(pos_base);
   }
-  std::vector<uint64_t> tmpGlobal;
-  std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
+  std::set<uint64_t> tmpGlobal;
+  std::set<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  tmpGlobal1.push_back(reserve);
+  tmpGlobal1.insert(reserve);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2522,10 +2522,10 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos){
     pos_base = assign_gadge[pos_base].second.pre;
     GadgeChain.push_back(pos_base);
   }
-  std::vector<uint64_t> tmpGlobal;
-  std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
+  std::set<uint64_t> tmpGlobal;
+  std::set<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  tmpGlobal1.push_back(assign_gadge[*rit].first);
+  tmpGlobal1.insert(assign_gadge[*rit].first);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2554,10 +2554,10 @@ void JumpTargetManager::harvestCodePointerInDataSegment(int64_t pos, uint64_t re
     pos_base = assign_gadge[pos_base].second.pre;
     GadgeChain.push_back(pos_base);
   }
-  std::vector<uint64_t> tmpGlobal;
-  std::vector<uint64_t> &tmpGlobal1 = tmpGlobal;
+  std::set<uint64_t> tmpGlobal;
+  std::set<uint64_t> &tmpGlobal1 = tmpGlobal;
   std::vector<int64_t>::reverse_iterator rit = GadgeChain.rbegin();
-  tmpGlobal1.push_back(reserve);
+  tmpGlobal1.insert(reserve);
   for(;rit!=GadgeChain.rend();rit++){
     auto gadget = assign_gadge[*rit].second.static_addr_block;
     bool oper = false;
@@ -2585,15 +2585,15 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
                                         uint32_t op,
                                         bool indirect,
                                         bool isloop,
-                                        std::vector<uint64_t> &tmpGlobal){
+                                        std::set<uint64_t> &tmpGlobal){
     if(gadget==nullptr or global_I==nullptr)
       return;
     auto thisAddr = getInstructionPC(&*(gadget->begin()));
     if(thisAddr==0)
       return;
     auto current_pc = getInstructionPC(global_I);
-    std::vector<uint64_t> tempVec; 
-    std::vector<uint64_t> &tempVec1 = tempVec;
+    std::set<uint64_t> tempVec; 
+    std::set<uint64_t> &tempVec1 = tempVec;
     std::set<uint64_t> JTtargets;
     std::set<uint64_t>& JTtargets1 = JTtargets;
 
@@ -2602,7 +2602,6 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
 
     uint32_t opt = UndefineOP;
     uint64_t virtualAddr = 0;
-    uint32_t crash = 0;
     bool recover = false;
     if(current_pc != thisAddr){
       std::tie(opt,virtualAddr) = getLastOperandandNextPC(&*(gadget->begin()),global_I);
@@ -2611,6 +2610,8 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
     }
     if(current_pc == thisAddr){
       opt = getOffsetReg(global_I);
+      if(isloop and opt==UndefineOP)
+        opt = getAddOffsetReg(global_I);
       if(opt!=UndefineOP){
         virtualAddr = current_pc;
 	thisAddr = 0;
@@ -2628,8 +2629,7 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
       for(auto base : tmpGlobal){
         if(op!=UndefineOP)
           ptc.regs[op] = base;
-        ConstOffsetExec(gadget,thisAddr,current_pc,oper,global_I,op,indirect,isloop,crash,tempVec1,JTtargets1);
-        crash++;
+        ConstOffsetExec(gadget,thisAddr,current_pc,oper,global_I,op,indirect,isloop,tempVec1,JTtargets1);
       }
       tmpGlobal.clear();
       tmpGlobal = tempVec1;
@@ -2657,8 +2657,7 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
     for(auto base:tmpGlobal){
       if(op!=UndefineOP)
         ptc.regs[op] = base;
-      VarOffsetExec(gadget,thisAddr,virtualAddr,current_pc,oper,global_I,op,opt,indirect,isloop,crash,tempVec1,JTtargets1);
-      crash++;
+      VarOffsetExec(gadget,thisAddr,virtualAddr,current_pc,oper,global_I,op,opt,indirect,isloop,tempVec1,JTtargets1);
     }
     tmpGlobal.clear();
     tmpGlobal = tempVec1;
@@ -2680,12 +2679,9 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
                                         uint32_t op, 
                                         bool indirect,
                                         bool isloop,
-                                        uint32_t crash,
-                                        std::vector<uint64_t>& tempVec,
+                                        std::set<uint64_t>& tempVec,
                                         std::set<uint64_t>& JTtargets){
   size_t pagesize = 0;        
-  uint32_t gadgetCrash = 0; 
-  uint64_t check = 0;
  
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2696,35 +2692,17 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
   for(;;){
     //Static addresses are indirect jump target address.
     int64_t tmpPC = ptc.exec(thisAddr);
-    if(tmpPC==-1){
-      if(!crash){ 
-        if(!gadgetCrash){
-          break;
-          //revng_assert(tmpPC!=-1);
-          
-        }
-        else
-          break;
-      }
-      else
-        break;
-    }
-    gadgetCrash++;
+    
     if(oper){
       auto data = getGlobalDatafromDestRegs(gadget);
       if(!isGlobalData(data))
         break;
-      bool have = false;
-      for(auto t:tempVec){
-        if(t==data){
-          have = true;
-          break;
-        }
-      }
-      if(have==false){
-        tempVec.push_back(data);
+      auto it = tempVec.find(data);
+      if(it==tempVec.end()){ 
+        tempVec.insert(data);
         BaseAddr <<"  data:    0x"<< std::hex << data <<"\n";
-        if(isRecordCandidataAddr){
+      }
+      if(isRecordCandidataAddr){
           std::map<uint64_t,uint32_t>::iterator Target1 = AllGloCandidataAddr.find(data-1);
           std::map<uint64_t,uint32_t>::iterator Target2 = AllGloCandidataAddr.find(data-2);
           std::map<uint64_t,uint32_t>::iterator Target3 = AllGloCandidataAddr.find(data-3);
@@ -2737,7 +2715,6 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
           if(!isGlobalDataNoRO(data))  
             break;
           AllGloCandidataAddr[data] = 1;
-        }
       }
       pagesize++;
       if(pagesize>LoopNums)
@@ -2754,21 +2731,14 @@ void JumpTargetManager::ConstOffsetExec(llvm::BasicBlock *gadget,
     pagesize++;
     if(!haveDef2OP(global_I,op) or pagesize>LoopNums)
       break;
-    if(tmpPC==0)
-      continue;
     if(!isExecutableAddress(tmpPC))
       break;    
-    if(pagesize<5 or pagesize==5){
-      check += tmpPC;
-    }
-    if(pagesize==5){
-      if((check-tmpPC*5)==0) 
-        break;
-    }
-    JTtargets.insert(tmpPC);
+    auto targetIT = JTtargets.find(tmpPC);
+    if(targetIT==JTtargets.end()){
+      JTtargets.insert(tmpPC);
     //harvestBTBasicBlock(gadget,thisAddr,tmpPC);
-   
-    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";    
+      BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";    
+    }
     if(!isloop) 
       break;
   }
@@ -2785,12 +2755,9 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
                                       uint32_t opt,
                                       bool indirect,
                                       bool isloop,
-                                      uint32_t crash,
-                                      std::vector<uint64_t>& tempVec,
+                                      std::set<uint64_t>& tempVec,
                                       std::set<uint64_t>& JTtargets){
   size_t pagesize = 0;
-  uint32_t gadgetCrash = 0;
-  uint64_t check = 0;
         
   auto Path = "GlobalPointer.log";
   std::ofstream BaseAddr;
@@ -2799,38 +2766,24 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
   if(op!=UndefineOP)
     BaseAddr <<"base: "<<std::hex<< ptc.regs[op] <<" : \n";
   for(int i=0; ;i++){
-    ptc.regs[opt] = i; 
+    if(isloop)
+      ptc.regs[opt] = i*8;
+    else  
+      ptc.regs[opt] = i; 
     //Static addresses are indirect jump target address.
     int64_t tmpPC = ptc.exec(virtualAddr);
-    if(tmpPC==-1){
-      if(!crash){ 
-        if(!gadgetCrash){
-          break;
-          //revng_assert(tmpPC!=-1);
-        }
-        else
-          break;
-      }
-      else
-        break;
-    }
-    gadgetCrash++;
+    
     if(oper){
       //TODO:vector data ?
       auto data = getGlobalDatafromDestRegs(gadget);
       if(!isGlobalData(data))
         break;
-      bool have = false;
-      for(auto t:tempVec){
-        if(t==data){
-          have = true;
-          break;
-        }
-      }
-      if(have==false){
-        tempVec.push_back(data); 
+      auto it = tempVec.find(data);
+      if(it==tempVec.end()){
+        tempVec.insert(data); 
         BaseAddr <<"  data    0x"<< std::hex << data <<"\n";
-        if(isRecordCandidataAddr){
+      }
+      if(isRecordCandidataAddr){
           std::map<uint64_t,uint32_t>::iterator Target1 = AllGloCandidataAddr.find(data-1);
           std::map<uint64_t,uint32_t>::iterator Target2 = AllGloCandidataAddr.find(data-2);
           std::map<uint64_t,uint32_t>::iterator Target3 = AllGloCandidataAddr.find(data-3);
@@ -2843,8 +2796,7 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
           if(!isGlobalDataNoRO(data))  
             break;
           AllGloCandidataAddr[data] = 1;
-        }
-      }
+      }  
       pagesize++;
       if(pagesize>LoopNums)
         break;
@@ -2858,21 +2810,15 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
     pagesize++;
     if(pagesize>LoopNums)
       break;
-    if(tmpPC==0)
-      continue; 
     if(!isExecutableAddress(tmpPC))
       break;   
-    if(pagesize<5 or pagesize==5){
-      check += tmpPC;
-    } 
-    if(pagesize==5){
-      if((check-tmpPC*5)==0)
-        break;
-    }
-    JTtargets.insert(tmpPC);
+    
+    auto targetIT = JTtargets.find(tmpPC);
+    if(targetIT==JTtargets.end()){ 
+      JTtargets.insert(tmpPC);
     //harvestBTBasicBlock(gadget,thisAddr,tmpPC);
-   
-    BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";
+      BaseAddr <<"    0x"<< std::hex << tmpPC <<"\n";
+    }
     if(!isloop)
       break;      
   }
@@ -4099,13 +4045,50 @@ std::pair<uint32_t,uint64_t> JumpTargetManager::getLastOperandandNextPC(llvm::In
   return std::make_pair(op,addr);
 }
 
+//case: add 0x8724e0(%rbp), %rbx
+//      rbp = 0, rbx is index reg 
+uint32_t JumpTargetManager::getAddOffsetReg(llvm::Instruction *I){
+  BasicBlock::iterator it(I);
+  BasicBlock::iterator end = I->getParent()->end();
+  std::vector<uint32_t> OPs;
+
+  it++;
+  for(; it!=end; it++){
+    if(it->getOpcode() == Instruction::Load){
+      auto load = dyn_cast<LoadInst>(&*it);
+      auto v = load->getPointerOperand();
+      if(dyn_cast<Constant>(v)){
+        StringRef name = v->getName();
+        auto number = StrToInt(name.data());
+        auto op = REGLABLE(number);
+        if(op!=UndefineOP)
+          OPs.push_back(op);
+      }
+    }
+    if(it->getOpcode() == Instruction::Call){
+      auto call = dyn_cast<CallInst>(&*it);
+      auto *Callee = call->getCalledFunction();
+      if(Callee != nullptr && Callee->getName() == "newpc")
+        break;
+    }
+  }
+  if(!OPs.empty()){
+    if(!isRecordCandidataAddr){
+      for(auto r : OPs)
+        ptc.regs[r] = 0;
+    }
+    return OPs.back();
+  }
+  return UndefineOP;
+}
+
 uint32_t JumpTargetManager::getOffsetReg(llvm::Instruction *I){
   BasicBlock::reverse_iterator it(I);
   BasicBlock::reverse_iterator rend = I->getParent()->rend();
-  //bool flag = false;
+  bool flag = false;
   for(; it!=rend; it++){
-    //if(it->getOpcode() == Instruction::Shl)
-    //  flag = true;
+    if(it->getOpcode() == Instruction::Shl)
+      flag = true;
     if(it->getOpcode() == Instruction::Load){
       auto load = dyn_cast<LoadInst>(&*it);
       auto v = load->getPointerOperand();
@@ -4113,7 +4096,7 @@ uint32_t JumpTargetManager::getOffsetReg(llvm::Instruction *I){
         StringRef name = v->getName();
 	auto number = StrToInt(name.data());
 	auto op = REGLABLE(number);
-	if(op!=UndefineOP)
+	if(flag and op!=UndefineOP)
 	  return op;
       }
     }

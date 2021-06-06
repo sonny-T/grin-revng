@@ -305,6 +305,7 @@ public:
   uint64_t getGlobalDatafromDestRegs(llvm::BasicBlock *thisBlock);
   std::pair<uint32_t,uint64_t> getLastOperandandNextPC(llvm::Instruction *I,llvm::Instruction*current);
   bool isReachtoCurrent(llvm::StoreInst *store, llvm::Instruction *cur);
+  uint32_t getAddOffsetReg(llvm::Instruction *I);
   uint32_t getOffsetReg(llvm::Instruction *I);
   void harvestCodePointerInDataSegment(int64_t pos);
   void harvestCodePointerInDataSegment(int64_t pos, llvm::Instruction *tmpI, uint32_t tmpOP);
@@ -316,7 +317,7 @@ public:
                        uint32_t op,
                        bool indirect,
                        bool isloop,
-                       std::vector<uint64_t> &tmpGlobal);
+                       std::set<uint64_t> &tmpGlobal);
   void ConstOffsetExec(llvm::BasicBlock *gadget,
                        uint64_t thisAddr,
                        uint64_t current_pc,
@@ -325,8 +326,7 @@ public:
                        uint32_t op,
                        bool indirect,
                        bool isloop,
-                       uint32_t crash,
-                       std::vector<uint64_t>& tempVec,
+                       std::set<uint64_t>& tempVec,
                        std::set<uint64_t>& JTtargets);
   void VarOffsetExec(llvm::BasicBlock *gadget,
                      uint64_t thisAddr,
@@ -338,8 +338,7 @@ public:
                      uint32_t opt,
                      bool indirect,
                      bool isloop,
-                     uint32_t crash,
-                     std::vector<uint64_t>& tempVec,
+                     std::set<uint64_t>& tempVec,
                      std::set<uint64_t>& JTtargets);
   bool isGOT(uint64_t pc);
   bool isROData(uint64_t pc);

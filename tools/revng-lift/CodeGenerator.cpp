@@ -853,12 +853,12 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
     if(!traverseFLAG){
       ConsumedSize = ptc.translate(VirtualAddress,!JumpTargets.haveBB,InstructionList.get(),&DynamicVirtualAddress);
       tmpVA = VirtualAddress;
-      JumpTargets.haveGlobalDatainRegs(GloData);
+      //JumpTargets.haveGlobalDatainRegs(GloData);
     }
     if(traverseFLAG and !JumpTargets.haveBB){
       ConsumedSize = ptc.translate(VirtualAddress,!JumpTargets.haveBB,InstructionList.get(),&DynamicVirtualAddress);
       tmpVA = VirtualAddress;
-      JumpTargets.haveGlobalDatainRegs(GloData);
+      //JumpTargets.haveGlobalDatainRegs(GloData);
     }
     if(JumpTargets.haveBB)
       ptc_instruction_list_malloc(InstructionList.get());
@@ -875,11 +875,11 @@ void CodeGenerator::translate(uint64_t VirtualAddress) {
         JumpTargets.harvestNextAddrofBr();
   
       JumpTargets.harvestJumpTableAddr(BlockBRs,tmpVA);
+      JumpTargets.harvestStaticAddr(BlockBRs);
       if(!GloData.empty()){
         JumpTargets.handleGlobalDataGadget(BlockBRs,GloData); 
         GloData.clear();
       }
-      JumpTargets.harvestStaticAddr(BlockBRs);
       if(*ptc.isCall){
         JumpTargets.harvestCallBasicBlock(BlockBRs,tmpVA);
         JumpTargets.recordFunArgs(DynamicVirtualAddress,BlockBRs);
