@@ -2620,7 +2620,7 @@ void JumpTargetManager::runGlobalGadget(llvm::BasicBlock * gadget,
     /* If the instruction to operate global data is entry address,
      * we consider that no instruction operates offset, and offset value
      * has been designated in global_I. */ 
-    if(current_pc == thisAddr or opt==UndefineOP or opt==R_ESP){
+    if(current_pc == thisAddr or opt==UndefineOP){
       if(ptc.is_stack_addr(ptc.regs[R_ESP])){
         ptc.storeStack();
         recover = true;
@@ -2766,7 +2766,7 @@ void JumpTargetManager::VarOffsetExec(llvm::BasicBlock *gadget,
   if(op!=UndefineOP)
     BaseAddr <<"base: "<<std::hex<< ptc.regs[op] <<" : \n";
   for(int i=0; ;i++){
-    if(isloop)
+    if(isloop and thisAddr==current_pc)
       ptc.regs[opt] = i*8;
     else  
       ptc.regs[opt] = i; 
@@ -2861,7 +2861,7 @@ void JumpTargetManager::harvestStaticAddr(llvm::BasicBlock *thisBlock){
               assign_gadge[pos].second.operation_block = thisBlock;
               auto Itt = dyn_cast<llvm::Instruction>(&*I);
               assign_gadge[pos].second.global_I = Itt;
-              assign_gadge[pos].second.isloop = true;
+              assign_gadge[pos].second.isloop = isAdd;
               //if thisBlock is indirect or StaticAddr is stored in registers. 
               if(*ptc.isIndirect or *ptc.isIndirectJmp or 
                   (getStaticAddrfromDestRegs1(&*I,0) and 
