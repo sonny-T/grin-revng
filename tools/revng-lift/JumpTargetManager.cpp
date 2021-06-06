@@ -3106,7 +3106,7 @@ int64_t JumpTargetManager::isRecordGadgetBlock(uint64_t base){
     if(assign_gadge[i].first==base){
       if(assign_gadge[i].second.operation_block   == nullptr and 
          assign_gadge[i].second.static_addr_block == nullptr)
-        return i;
+        return (int64_t)i;
     }
   }
 
@@ -3199,8 +3199,8 @@ std::pair<bool,bool> JumpTargetManager::haveBinaryOperation(llvm::Instruction *I
 	    v = store->getPointerOperand();
             if(flag or inttoptrflag){
               if(dyn_cast<Constant>(v)){
-                if(((v-last)==0) and !inttoptrflag)
-                  return {true,true}; 
+                if((v-last)==0)
+                    return {true,true}; 
                 return {false,true};
               }
             }
