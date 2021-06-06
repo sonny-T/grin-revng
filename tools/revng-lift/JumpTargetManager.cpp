@@ -3102,12 +3102,14 @@ int64_t JumpTargetManager::isRecordGadgetBlock(uint64_t base){
 //  if(Target!=AllGadget.end())
 //      return -2;
   
-  for(unsigned i=0; i<assign_gadge.size(); i++){
+  for(unsigned i=assign_gadge.size(); ;i--){
     if(assign_gadge[i].first==base){
       if(assign_gadge[i].second.operation_block   == nullptr and 
          assign_gadge[i].second.static_addr_block == nullptr)
         return (int64_t)i;
     }
+    if(i==0)
+      break;
   }
 
   return -1;
